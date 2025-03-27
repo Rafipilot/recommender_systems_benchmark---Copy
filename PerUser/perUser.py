@@ -7,7 +7,6 @@ import ao_arch as ar
 
 # Define architecture and agent
 Arch = ar.Arch(arch_i=[10], arch_z=[1], arch_c=[])
-Agent = ao.Agent(Arch)
 
 # Load datasets
 df1 = pd.read_csv("data/movies_metadata.csv")
@@ -18,8 +17,7 @@ df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to float from o
 user_counts = df2['userId'].value_counts()
 selected_users = user_counts[user_counts >= 20].index  # Users with at least 20 ratings
 
-# Choose a subset of users (e.g., 50 users for the test)
-sampled_users = selected_users[:2]  # Adjust this number as needed
+sampled_users = selected_users[:100]  
 
 
 # Get 20 ratings per sampled user
@@ -95,7 +93,10 @@ for index, user_data in enumerate(Users_data):
     print(user_data)
     print("\n") 
 
+correct_array = []
+
 for index, user_data in enumerate(Users_data):
+    Agent = ao.Agent(Arch)
 
     n = len(user_data)
     split= math.floor(n*0.8)
@@ -135,62 +136,37 @@ for index, user_data in enumerate(Users_data):
     print("Testing Phase:")
     print("test: ", test)
 
+    for i, row in enumerate(test):
+        genres = []
+        print("row: ", row)
+        try:
+            genres_data = ast.literal_eval(row[3]) 
+            for genre_dict in genres_data:
+                genres.append(genre_dict["name"])  
 
-# for i, row in train_df.reset_index().iterrows():  
-#     genres = []
-    
-#     try:
-#         genres_data = ast.literal_eval(row["genres"]) 
-#         for genre_dict in genres_data:
-#             genres.append(genre_dict["name"]) 
+        except (ValueError, SyntaxError):  
+            genres = []
 
-#     except (ValueError, SyntaxError):  
-#         genres = []
+        rating = row[2]
 
-#     rating = row["rating"]
-#     userId = row["userId"]
+        rating_encoding = encode_rating(rating)
 
-#     rating_encoding = encode_rating(rating)
-#     userId_encoding = encode_Id(userId)
+        genre_encoding = encode_genre(genres)
 
-#     print("userid: ", userId)
-#     genre_encoding = encode_genre(genres)
+        input_data = genre_encoding 
 
-#     input_data = genre_encoding #+ list(userId_encoding)
-#     label = rating_encoding
+        # Instead of training, just evaluate
+        response = Agent.next_state(input_data, print_result=True, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
+        Agent.reset_state()
+        correct = 0
+        n = len(test)/3
+        if response == rating_encoding:
+            print("Correct!")
+            correct += 1
+        print("correct: ", correct)
+        print("correct / n: ", correct/n)
 
+        correct_array.append(correct/n)
 
-#     inputs.append(input_data)
-#     labels.append(label)
-
-# Agent.next_state_batch(inputs, labels, unsequenced=True,DD=True, Hamming=False, Backprop=False, print_result=True, Backprop_epochs=10)
-
-# print("Testing Phase:")
-# correct = 0
-# for i, row in test_df.reset_index().iterrows():  
-#     genres = []
-    
-#     try:
-#         genres_data = ast.literal_eval(row["genres"]) 
-#         for genre_dict in genres_data:
-#             genres.append(genre_dict["name"])  
-
-#     except (ValueError, SyntaxError):  
-#         genres = []
-
-#     rating = row["rating"]
-#     userId = row["userId"]
-
-#     rating_encoding = encode_rating(rating)
-#     userId_encoding = encode_Id(userId)
-#     genre_encoding = encode_genre(genres)
-
-#     input_data = genre_encoding #+ list(userId_encoding)
-
-#     # Instead of training, just evaluate
-#     response = Agent.next_state(input_data, print_result=True,DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
-#     if response == rating_encoding:
-#         print("Correct!")
-#         correct += 1
-#     Agent.reset_state()
-# print(f"Accuracy: {correct / len(test_df)}")
+print("correct_array: ", correct_array)
+print("average correct: ", sum(correct_array)/len(correct_array))
