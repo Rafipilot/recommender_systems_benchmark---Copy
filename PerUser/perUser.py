@@ -17,11 +17,11 @@ df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to float from o
 user_counts = df2['userId'].value_counts()
 selected_users = user_counts[user_counts >= 20].index  # Users with at least 20 ratings
 
-sampled_users = selected_users[:100]  
+sampled_users = selected_users[:200]  
 
 
 # Get 20 ratings per sampled user
-merged_df = df2[df2['userId'].isin(sampled_users)].groupby("userId").apply(lambda x: x.sample(40, random_state=42)).reset_index(drop=True)
+merged_df = df2[df2['userId'].isin(sampled_users)].groupby("userId").apply(lambda x: x.sample(20, random_state=42)).reset_index(drop=True)
 
 # Merge with movie metadata
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
@@ -66,10 +66,8 @@ user = []
 
 for i, row in sorted_merged_df.reset_index().iterrows():
     if first_pass:
-        print("First pass")
         first_pass = False
         la = [row["userId"], row["movieId"], row["rating"], row["genres"]]
-        
         user.append(la)
         previous_userId = row["userId"]
     else:
@@ -134,7 +132,8 @@ for index, user_data in enumerate(Users_data):
 
 
     print("Testing Phase:")
-    print("test: ", test)
+
+    correct = 0
 
     for i, row in enumerate(test):
         genres = []
@@ -155,18 +154,22 @@ for index, user_data in enumerate(Users_data):
 
         input_data = genre_encoding 
 
-        # Instead of training, just evaluate
         response = Agent.next_state(input_data, print_result=True, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
         Agent.reset_state()
-        correct = 0
-        n = len(test)/3
         if response == rating_encoding:
             print("Correct!")
             correct += 1
-        print("correct: ", correct)
-        print("correct / n: ", correct/n)
+    
+    n = len(test)
+    print("test:")
+    print(test)
+    print("len(test): ", len(test))
 
-        correct_array.append(correct/n)
+
+    print("correct: ", correct)
+    print("correct / n: ", correct/n)
+
+    correct_array.append(correct/n)
 
 print("correct_array: ", correct_array)
 print("average correct: ", sum(correct_array)/len(correct_array))
