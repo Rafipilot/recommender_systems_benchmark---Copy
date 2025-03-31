@@ -14,11 +14,10 @@ df2 = pd.read_csv("data/ratings.csv")
 
 df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to float from object
 
-user_counts = df2['userId'].value_counts()  # Users with at least 20 ratings
+user_counts = df2['userId'].value_counts()
 
-sampled_users = user_counts[1000:995] 
+sampled_users = user_counts.index[:10]  
 
-print("sampled: ", sampled_users)
 
 # Get 20 ratings per sampled user
 merged_df = df2[df2['userId'].isin(sampled_users)]
@@ -41,13 +40,13 @@ def encode_genre(genres_list):
 def encode_rating(rating):
     return [1] if rating >= 3.0 else [0]
 
+
+
 # Training Phase
 inputs = []
 labels = []
 
-sorted_merged_df = merged_df
-
-print(merged_df)
+sorted_merged_df = merged_df.sort_values(by=["userId"])
 print("sorted_train_df: ", sorted_merged_df)
 
 
