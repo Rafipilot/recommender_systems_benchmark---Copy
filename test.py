@@ -12,15 +12,8 @@ df2 = pd.read_csv("data/ratings.csv")
 
 df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to numeric
 
-# Select users with at least 40 ratings
-user_counts = df2['userId'].value_counts()
-selected_users = user_counts[user_counts >= 40].index  
-
-# Sample a subset of 200 users
-sampled_users = selected_users[:200]  
-
 # Get 40 ratings per sampled user
-merged_df = df2[df2['userId'].isin(sampled_users)].groupby("userId").apply(lambda x: x.sample(40, random_state=42)).reset_index(drop=True)
+merged_df = df2.reset_index(drop=True)
 
 # Merge with movie metadata
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")

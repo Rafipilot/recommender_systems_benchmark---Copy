@@ -14,14 +14,14 @@ df2 = pd.read_csv("data/ratings.csv")
 
 df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to float from object
 
-user_counts = df2['userId'].value_counts()
-selected_users = user_counts[user_counts >= 20].index  # Users with at least 20 ratings
+user_counts = df2['userId'].value_counts()  # Users with at least 20 ratings
 
-sampled_users = selected_users[:200]  
+sampled_users = user_counts[1000:995] 
 
+print("sampled: ", sampled_users)
 
 # Get 20 ratings per sampled user
-merged_df = df2[df2['userId'].isin(sampled_users)].groupby("userId").apply(lambda x: x.sample(20, random_state=42)).reset_index(drop=True)
+merged_df = df2[df2['userId'].isin(sampled_users)]
 
 # Merge with movie metadata
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
@@ -41,18 +41,13 @@ def encode_genre(genres_list):
 def encode_rating(rating):
     return [1] if rating >= 3.0 else [0]
 
-def encode_Id(id):
-    return format(id, '025b')
-
-# Splitting dataset into training (80%) and testing (20%)
-train_df = merged_df.sample(frac=0.8, random_state=42)
-test_df = merged_df.drop(train_df.index)
-
 # Training Phase
 inputs = []
 labels = []
 
-sorted_merged_df = merged_df.sort_values(by=["userId"])
+sorted_merged_df = merged_df
+
+print(merged_df)
 print("sorted_train_df: ", sorted_merged_df)
 
 
@@ -63,6 +58,7 @@ first_pass = True
 previous_userId = None
 Users_data = []  
 user = []
+
 
 for i, row in sorted_merged_df.reset_index().iterrows():
     if first_pass:
@@ -82,6 +78,8 @@ for i, row in sorted_merged_df.reset_index().iterrows():
             user.append(la)
             previous_userId = row["userId"]
 
+
+
 # Add previous user data 
 if user:
     Users_data.append(user)
@@ -91,8 +89,8 @@ for index, user_data in enumerate(Users_data):
     print(user_data)
     print("\n") 
 
-correct_array = []
 
+correct_array = []
 for index, user_data in enumerate(Users_data):
     Agent = ao.Agent(Arch)
 
@@ -132,10 +130,12 @@ for index, user_data in enumerate(Users_data):
 
 
     print("Testing Phase:")
-
     correct = 0
 
     for i, row in enumerate(test):
+
+
+
         genres = []
         print("row: ", row)
         try:
@@ -170,6 +170,8 @@ for index, user_data in enumerate(Users_data):
     print("correct / n: ", correct/n)
 
     correct_array.append(correct/n)
+
+    correct = 0
 
 print("correct_array: ", correct_array)
 print("average correct: ", sum(correct_array)/len(correct_array))
