@@ -37,6 +37,8 @@ def encode_genre(genres_list):
 
     return genre_encoding
 
+
+
 def encode_rating(rating):
     return [1] if rating >= 3.0 else [0]
 
@@ -58,24 +60,25 @@ previous_userId = None
 Users_data = []  
 user = []
 
-
 for i, row in sorted_merged_df.reset_index().iterrows():
     if first_pass:
         first_pass = False
-        la = [row["userId"], row["movieId"], row["rating"], row["genres"]]
+        la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
         user.append(la)
         previous_userId = row["userId"]
     else:
         if row["userId"] == previous_userId:
-            la = [row["userId"], row["movieId"], row["rating"], row["genres"]]
+            la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
             user.append(la)
         else:
             Users_data.append(user)
             user = []
 
-            la = [row["userId"], row["movieId"], row["rating"], row["genres"]]
+            la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
             user.append(la)
             previous_userId = row["userId"]
+
+
 
 
 
