@@ -6,7 +6,7 @@ import ao_core as ao
 import ao_arch as ar
 
 # Define architecture and agent
-Arch = ar.Arch(arch_i=[10, 1, 3], arch_z=[1], arch_c=[])
+Arch = ar.Arch(arch_i=[10, 3, 3], arch_z=[1], arch_c=[])
 
 # Load datasets
 df1 = pd.read_csv("data/movies_metadata.csv")
@@ -16,7 +16,7 @@ df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to float from o
 
 user_counts = df2['userId'].value_counts()
 
-sampled_users = user_counts.index[:20]  
+sampled_users = user_counts.index[:100]  
 
 
 # Get 20 ratings per sampled user
@@ -24,6 +24,12 @@ merged_df = df2[df2['userId'].isin(sampled_users)]
 
 # Merge with movie metadata
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
+
+
+m= merged_df['vote_count'].quantile(0.9)
+C= merged_df['vote_average'].mean()
+merged_df = merged_df.copy().loc[merged_df['vote_count'] >= m]  # Remove bottom 90
+
 
 # Define genre categories
 start_Genre = ["drama", "comedy", "action", "romance", "documentary", "thriller", "adventure", "fantasy", "crime", "horror"]
@@ -37,15 +43,33 @@ def encode_genre(genres_list):
 
     return genre_encoding
 
+def encode_lang(lang):
+
+    if lang == "en":
+        return [0,0,0]
+    elif lang == "fr":
+        return [0,0,1]
+    elif lang == "it":
+        return [0,1,1]
+    elif lang =="ja":
+        return [1, 1, 1]
+    elif lang == "de":
+        return [1,0,0]
+    else:
+        return [1, 1, 0]
 
 
 def encode_rating(rating):
     return [1] if rating >= 3.0 else [0]
 
 def encode_adult(adult):
-    return [1] if adult else [0]
+    return [1] if adult==True else [0]
 
-def encode_vote_avg(avg):
+def encode_vote_avg(avg, count):
+    v = avg
+    R = count
+    # Calculation based on the IMDB formula
+    avg =  (v/(v+m) * R) + (m/(m+v) * C)
     if avg < 2:
         return [0,0,0]
     elif avg <4:
@@ -120,7 +144,6 @@ for index, user_data in enumerate(Users_data):
         try:
             genres_data = ast.literal_eval(row[3]) #for some reason the genres column is a string and not a list
             for genre_dict in genres_data:
-                print("genre_dict: ", genre_dict)
                 genres.append(genre_dict["name"])  
 
         except (ValueError, SyntaxError):  
@@ -132,19 +155,22 @@ for index, user_data in enumerate(Users_data):
         adult_encoding = encode_adult(adult)
 
         lang = row[5]
+        lang_encoding = encode_lang(lang)
 
         vote_avg = row[6]
-        print("vot: ", vote_avg)
-        vote_avg_encoding = encode_vote_avg(vote_avg)
-
         vote_count = row[7]
+        vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
+
+        
 
 
         rating_encoding = encode_rating(rating)
 
         genre_encoding = encode_genre(genres)
 
-        input_data = genre_encoding  + adult_encoding + vote_avg_encoding
+        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding
+
+        print("input: ", input_data)
         label = rating_encoding
 
         inputs.append(input_data)
@@ -158,9 +184,6 @@ for index, user_data in enumerate(Users_data):
 
     for i, row in enumerate(test):
 
-
-        rating = row[2]
-
         genres = []
         print("row: ", row)
         try:
@@ -172,22 +195,26 @@ for index, user_data in enumerate(Users_data):
             genres = []
 
 
+        rating = row[2]
+
         adult = row[4]
         adult_encoding = encode_adult(adult)
 
         lang = row[5]
+        lang_encoding = encode_lang(lang)
 
         vote_avg = row[6]
-        vote_avg_encoding = encode_vote_avg(vote_avg)
-
         vote_count = row[7]
+        vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
+
+        
 
 
         rating_encoding = encode_rating(rating)
 
         genre_encoding = encode_genre(genres)
 
-        input_data = genre_encoding  + adult_encoding + vote_avg_encoding
+        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding
 
         response = Agent.next_state(input_data, print_result=True, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
         Agent.reset_state()
