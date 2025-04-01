@@ -6,7 +6,7 @@ import ao_core as ao
 import ao_arch as ar
 
 # Define architecture and agent
-Arch = ar.Arch(arch_i=[10], arch_z=[1], arch_c=[])
+Arch = ar.Arch(arch_i=[10, 1, 3], arch_z=[1], arch_c=[])
 
 # Load datasets
 df1 = pd.read_csv("data/movies_metadata.csv")
@@ -16,7 +16,7 @@ df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to float from o
 
 user_counts = df2['userId'].value_counts()
 
-sampled_users = user_counts.index[:10]  
+sampled_users = user_counts.index[:20]  
 
 
 # Get 20 ratings per sampled user
@@ -42,6 +42,18 @@ def encode_genre(genres_list):
 def encode_rating(rating):
     return [1] if rating >= 3.0 else [0]
 
+def encode_adult(adult):
+    return [1] if adult else [0]
+
+def encode_vote_avg(avg):
+    if avg < 2:
+        return [0,0,0]
+    elif avg <4:
+        return [0,1,0]
+    elif avg<6:
+        return [0,1,1]
+    else:
+        return [1,1,1]
 
 
 # Training Phase
@@ -116,13 +128,23 @@ for index, user_data in enumerate(Users_data):
 
         rating = row[2]
 
+        adult = row[4]
+        adult_encoding = encode_adult(adult)
+
+        lang = row[5]
+
+        vote_avg = row[6]
+        print("vot: ", vote_avg)
+        vote_avg_encoding = encode_vote_avg(vote_avg)
+
+        vote_count = row[7]
+
 
         rating_encoding = encode_rating(rating)
 
-
         genre_encoding = encode_genre(genres)
 
-        input_data = genre_encoding 
+        input_data = genre_encoding  + adult_encoding + vote_avg_encoding
         label = rating_encoding
 
         inputs.append(input_data)
@@ -137,6 +159,7 @@ for index, user_data in enumerate(Users_data):
     for i, row in enumerate(test):
 
 
+        rating = row[2]
 
         genres = []
         print("row: ", row)
@@ -148,13 +171,23 @@ for index, user_data in enumerate(Users_data):
         except (ValueError, SyntaxError):  
             genres = []
 
-        rating = row[2]
+
+        adult = row[4]
+        adult_encoding = encode_adult(adult)
+
+        lang = row[5]
+
+        vote_avg = row[6]
+        vote_avg_encoding = encode_vote_avg(vote_avg)
+
+        vote_count = row[7]
+
 
         rating_encoding = encode_rating(rating)
 
         genre_encoding = encode_genre(genres)
 
-        input_data = genre_encoding 
+        input_data = genre_encoding  + adult_encoding + vote_avg_encoding
 
         response = Agent.next_state(input_data, print_result=True, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
         Agent.reset_state()
