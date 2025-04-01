@@ -26,9 +26,15 @@ merged_df = df2[df2['userId'].isin(sampled_users)]
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
 
 print(merged_df.columns)
+
 m= merged_df['vote_count'].quantile(0.9)
-print("m: ", m)
 merged_df = merged_df.copy().loc[merged_df['vote_count'] >= m]
+C= merged_df['vote_average'].mean()
+n_mean = merged_df['vote_count'].mean()
+print(n_mean)
+print("c: ", C)
+print("m: ", m)
+
 print("mergeddf: ", merged_df.shape)
 
 # Define genre categories
