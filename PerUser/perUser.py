@@ -6,17 +6,17 @@ import ao_core as ao
 import ao_arch as ar
 
 # Define architecture and agent
-Arch = ar.Arch(arch_i=[10, 3, 3], arch_z=[10], arch_c=[])
+Arch = ar.Arch(arch_i=[10, 3, 3, 2], arch_z=[10], arch_c=[])
 
 # Load datasets
 df1 = pd.read_csv("data/movies_metadata.csv")
 df2 = pd.read_csv("data/ratings.csv")
 
-df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  # Convert to float from object
+df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  
 
 user_counts = df2['userId'].value_counts()
 
-sampled_users = user_counts.index[:50]  
+sampled_users = user_counts.index[1000:1010]  
 
 merged_df = df2[df2['userId'].isin(sampled_users)]
 
@@ -26,7 +26,7 @@ merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
 
 m= merged_df['vote_count'].quantile(0.9)
 C= merged_df['vote_average'].mean()
-merged_df = merged_df.copy().loc[merged_df['vote_count'] >= m]  # Remove bottom 90
+merged_df = merged_df.copy().loc[merged_df['vote_count'] >= m]  
 
 
 # Define genre categories
@@ -40,6 +40,14 @@ def encode_genre(genres_list):
             genre_encoding[start_Genre.index(genre.lower())] = 1
 
     return genre_encoding
+
+def encode_count(count):
+    if count < m+200:
+        return [0,0]
+    elif count < m+600:
+        return [0,1]
+    else:
+        return [1,1]
 
 def encode_lang(lang):
 
@@ -64,34 +72,25 @@ def encode_adult(adult):
     return [1] if adult==True else [0]
 
 def encode_vote_avg(avg, count):
-    v = avg
-    R = count
-    # Calculation based on the IMDB formula
-    avg =  (v/(v+m) * R) + (m/(m+v) * C)
-    if avg < 4:
+    
+    print("avg: ", avg)
+    if avg < 2:
         return [0,0,0]
-    elif avg <8:
+    elif avg <4:
         return [0,1,0]
-    elif avg<12:
+    elif avg<6:
         return [0,1,1]
     else:
         return [1,1,1]
 
-
-# Training Phase
-inputs = []
-labels = []
-
 sorted_merged_df = merged_df.sort_values(by=["userId"])
 
-
-print("Training Phase:")
 first_pass = True
 previous_userId = None
 Users_data = []  
 user = []                                                                                                                                                    
 
-for i, row in sorted_merged_df.reset_index().iterrows():
+for i, row in sorted_merged_df.iterrows():
     if first_pass:
         first_pass = False
         la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
@@ -108,10 +107,6 @@ for i, row in sorted_merged_df.reset_index().iterrows():
             la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
             user.append(la)
             previous_userId = row["userId"]
-
-
-
-
 
 # Add previous user data 
 if user:
@@ -131,6 +126,10 @@ for index, user_data in enumerate(Users_data):
     split= math.floor(n*0.8)
     train = user_data[:split]
     test = user_data[split:]
+
+    # Training Phase
+    inputs = []
+    labels = []
 
 
     for i, row in enumerate(train):
@@ -155,6 +154,7 @@ for index, user_data in enumerate(Users_data):
         vote_avg = row[6]
         vote_count = row[7]
         vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
+        vote_count_encoding = encode_count(vote_count)
 
         
 
@@ -163,7 +163,7 @@ for index, user_data in enumerate(Users_data):
 
         genre_encoding = encode_genre(genres)
 
-        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding
+        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
 
         print("input: ", input_data)
         
@@ -203,6 +203,7 @@ for index, user_data in enumerate(Users_data):
         vote_avg = row[6]
         vote_count = row[7]
         vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
+        vote_count_encoding = encode_count(vote_count)
 
         
 
@@ -211,10 +212,14 @@ for index, user_data in enumerate(Users_data):
 
         genre_encoding = encode_genre(genres)
 
-        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding
+        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
 
         for i in range(5):
             response = Agent.next_state(input_data, print_result=True, DD=True, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
+        
+        Agent.reset_state()
+
+
         ones = sum(response)
         if ones >=5:
             response = 1
@@ -226,24 +231,23 @@ for index, user_data in enumerate(Users_data):
             rating_encoding = 1
         else:
             rating_encoding = 0
-        Agent.reset_state()
+        
         print(rating_encoding)
+
         if response == rating_encoding:
             print("Correct!")
             correct += 1
-    
+
+        if rating_encoding == 1:
+            rating_encoding = 10*[1]
+        else:
+            rating_encoding = 10*[0]
+        #Agent.next_state(input_data, rating_encoding, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
+        #Agent.reset_state()
     n = len(test)
-    print("test:")
-    print(test)
-    print("len(test): ", len(test))
-
-
-    print("correct: ", correct)
-    print("correct / n: ", correct/n)
-
     correct_array.append(correct/n)
-
     correct = 0
+
 
 print("correct_array: ", correct_array)
 print("average correct: ", sum(correct_array)/len(correct_array))
