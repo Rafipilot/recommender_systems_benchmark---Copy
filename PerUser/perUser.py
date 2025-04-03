@@ -2,8 +2,150 @@ import pandas as pd
 import math
 import ast # to convert the str to list
 
+import time
 import ao_core as ao
 import ao_arch as ar
+from datetime import datetime
+import gc 
+import matplotlib.pyplot as plt
+
+
+def test_train():
+    correct_array = []
+    for index, user_data in enumerate(Users_data):
+        Agent = ao.Agent(Arch, _steps=15000)
+
+        n = len(user_data)
+        split= math.floor(n*0.8)
+        train = user_data[:split]
+        test = user_data[split:]
+
+        # Training Phase
+        inputs = []
+        labels = []
+
+
+        for i, row in enumerate(train):
+            genres = []
+            try:
+                genres_data = ast.literal_eval(row[3]) #for some reason the genres column is a string and not a list
+                for genre_dict in genres_data:
+                    genres.append(genre_dict["name"])  
+
+            except (ValueError, SyntaxError):  
+                genres = []
+
+            rating = row[2]
+
+            adult = row[4]
+            adult_encoding = encode_adult(adult)
+
+            lang = row[5]
+            lang_encoding = encode_lang(lang)
+
+            vote_avg = row[6]
+            vote_count = row[7]
+            vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
+            vote_count_encoding = encode_count(vote_count)
+
+            
+
+
+            rating_encoding = encode_rating(rating)
+
+            genre_encoding = encode_genre(genres)
+
+            input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
+            
+            label = rating_encoding
+
+
+
+
+            inputs.append(input_data)
+            labels.append(label)
+
+        print("inputs: ", inputs)
+        print("labels: ", labels)
+        try:
+            Agent.next_state_batch(inputs, labels, unsequenced=True, DD=True, Hamming=False, Backprop=False, Backprop_epochs=10)
+
+        except Exception as e:
+            print(e)
+
+        print("Testing Phase:")
+        correct = 0
+
+        for i, row in enumerate(test):
+
+            genres = []
+            try:
+                genres_data = ast.literal_eval(row[3]) 
+                for genre_dict in genres_data:
+                    genres.append(genre_dict["name"])  
+
+            except (ValueError, SyntaxError):  
+                genres = []
+
+
+            rating = row[2]
+
+            adult = row[4]
+            adult_encoding = encode_adult(adult)
+
+            lang = row[5]
+            lang_encoding = encode_lang(lang)
+
+            vote_avg = row[6]
+            vote_count = row[7]
+            vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
+            vote_count_encoding = encode_count(vote_count)
+
+            
+
+
+            rating_encoding = encode_rating(rating)
+
+            genre_encoding = encode_genre(genres)
+
+            input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
+
+            for i in range(5):
+                response = Agent.next_state(input_data,  DD=True, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
+            
+            Agent.reset_state()
+
+
+            ones = sum(response)
+            if ones >=5:
+                response = 1
+            else:
+                response = 0
+            
+            ones_2 = sum(rating_encoding)
+            if ones_2 >=5:
+                rating_encoding = 1
+            else:
+                rating_encoding = 0
+            
+
+            if response == rating_encoding:
+                correct += 1
+
+            if rating_encoding == 1:
+                rating_encoding = 10*[1]
+            else:
+                rating_encoding = 10*[0]
+            #Agent.next_state(input_data, rating_encoding, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
+            #Agent.reset_state()
+        n = len(test)
+        correct_array.append(correct/n)
+        correct = 0
+        Agent = None
+        del(Agent)
+        gc.collect()
+    return correct_array
+
 
 # Define architecture and agent
 Arch = ar.Arch(arch_i=[10, 3, 3, 2], arch_z=[10], arch_c=[])
@@ -15,14 +157,21 @@ df2 = pd.read_csv("data/ratings.csv")
 df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  
 
 user_counts = df2['userId'].value_counts()
+avg_correct_array = []
 
-sampled_users = user_counts.index[1000:1010]  
+sampled_users = user_counts.index[10000:10300]  
 
 merged_df = df2[df2['userId'].isin(sampled_users)]
+
+
 
 # Merge with movie metadata
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
 
+
+print("merged df cols: ", merged_df.columns)
+
+print("means: ", merged_df[["userId"]].mean())
 
 m= merged_df['vote_count'].quantile(0.9)
 C= merged_df['vote_average'].mean()
@@ -73,7 +222,6 @@ def encode_adult(adult):
 
 def encode_vote_avg(avg, count):
     
-    print("avg: ", avg)
     if avg < 2:
         return [0,0,0]
     elif avg <4:
@@ -90,7 +238,7 @@ previous_userId = None
 Users_data = []  
 user = []                                                                                                                                                    
 
-for i, row in sorted_merged_df.iterrows():
+for j, row in sorted_merged_df.iterrows():
     if first_pass:
         first_pass = False
         la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
@@ -108,6 +256,8 @@ for i, row in sorted_merged_df.iterrows():
             user.append(la)
             previous_userId = row["userId"]
 
+
+
 # Add previous user data 
 if user:
     Users_data.append(user)
@@ -117,137 +267,18 @@ for index, user_data in enumerate(Users_data):
     print(user_data)
     print("\n") 
 
-
-correct_array = []
-for index, user_data in enumerate(Users_data):
-    Agent = ao.Agent(Arch)
-
-    n = len(user_data)
-    split= math.floor(n*0.8)
-    train = user_data[:split]
-    test = user_data[split:]
-
-    # Training Phase
-    inputs = []
-    labels = []
-
-
-    for i, row in enumerate(train):
-        genres = []
-        print("row: ", row)
-        try:
-            genres_data = ast.literal_eval(row[3]) #for some reason the genres column is a string and not a list
-            for genre_dict in genres_data:
-                genres.append(genre_dict["name"])  
-
-        except (ValueError, SyntaxError):  
-            genres = []
-
-        rating = row[2]
-
-        adult = row[4]
-        adult_encoding = encode_adult(adult)
-
-        lang = row[5]
-        lang_encoding = encode_lang(lang)
-
-        vote_avg = row[6]
-        vote_count = row[7]
-        vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
-        vote_count_encoding = encode_count(vote_count)
-
-        
-
-
-        rating_encoding = encode_rating(rating)
-
-        genre_encoding = encode_genre(genres)
-
-        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
-
-        print("input: ", input_data)
-        
-        label = rating_encoding
-        print("label: ", label)
-
-        inputs.append(input_data)
-        labels.append(label)
-
-    Agent.next_state_batch(inputs, labels, unsequenced=True, DD=True, Hamming=False, Backprop=False, print_result=True, Backprop_epochs=10)
-
-
-    print("Testing Phase:")
-    correct = 0
-
-    for i, row in enumerate(test):
-
-        genres = []
-        print("row: ", row)
-        try:
-            genres_data = ast.literal_eval(row[3]) 
-            for genre_dict in genres_data:
-                genres.append(genre_dict["name"])  
-
-        except (ValueError, SyntaxError):  
-            genres = []
-
-
-        rating = row[2]
-
-        adult = row[4]
-        adult_encoding = encode_adult(adult)
-
-        lang = row[5]
-        lang_encoding = encode_lang(lang)
-
-        vote_avg = row[6]
-        vote_count = row[7]
-        vote_avg_encoding = encode_vote_avg(vote_avg, vote_count)
-        vote_count_encoding = encode_count(vote_count)
-
-        
-
-
-        rating_encoding = encode_rating(rating)
-
-        genre_encoding = encode_genre(genres)
-
-        input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
-
-        for i in range(5):
-            response = Agent.next_state(input_data, print_result=True, DD=True, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
-        
-        Agent.reset_state()
-
-
-        ones = sum(response)
-        if ones >=5:
-            response = 1
-        else:
-            response = 0
-        
-        ones_2 = sum(rating_encoding)
-        if ones_2 >=5:
-            rating_encoding = 1
-        else:
-            rating_encoding = 0
-        
-        print(rating_encoding)
-
-        if response == rating_encoding:
-            print("Correct!")
-            correct += 1
-
-        if rating_encoding == 1:
-            rating_encoding = 10*[1]
-        else:
-            rating_encoding = 10*[0]
-        #Agent.next_state(input_data, rating_encoding, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
-        #Agent.reset_state()
-    n = len(test)
-    correct_array.append(correct/n)
-    correct = 0
-
-
+now = datetime.now()
+correct_array = test_train()
+after = datetime.now()
 print("correct_array: ", correct_array)
 print("average correct: ", sum(correct_array)/len(correct_array))
+print("time: ", after - now)
+# print("next batch")
+# print(k)
+# 8.12.sleep(3)
+
+
+# plt.plot(avg_correct_array)
+# plt.xlabel("Index")
+# plt.ylabel("Value")
+# plt.show()
