@@ -95,6 +95,7 @@ class MovieModel(nn.Module):
 overal_correct_array = []
 
 sampled_users = user_counts.index[10000:10300]  
+
 merged_df = df2[df2['userId'].isin(sampled_users)]
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
 
@@ -105,21 +106,28 @@ merged_df = merged_df.copy().loc[merged_df['vote_count'] >= m]
 
 # Sort merged data by userId and group data per user
 sorted_merged_df = merged_df.sort_values(by=["userId"])
-Users_data = []
-current_user = []
+first_pass = True
 previous_userId = None
-for _, row in sorted_merged_df.iterrows():
-    row_data = [row["userId"], row["movieId"], row["rating"],
-                row["genres"], row["adult"], row["original_language"],
-                row["vote_average"], row["vote_count"]]
-    if previous_userId is None or row["userId"] == previous_userId:
-        current_user.append(row_data)
+Users_data = []  
+user = []                                                                                                                                                    
+
+for j, row in sorted_merged_df.iterrows():
+    if first_pass:
+        first_pass = False
+        la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
+        user.append(la)
+        previous_userId = row["userId"]
     else:
-        Users_data.append(current_user)
-        current_user = [row_data]
-    previous_userId = row["userId"]
-if current_user:
-    Users_data.append(current_user)
+        if row["userId"] == previous_userId:
+            la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
+            user.append(la)
+        else:
+            Users_data.append(user)
+            user = []
+
+            la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
+            user.append(la)
+            previous_userId = row["userId"]
 
 correct_array = []  # Accuracy for each user group
 
@@ -135,7 +143,7 @@ for idx, user_data in enumerate(Users_data):
     train_inputs = []
     train_labels = []
     
-    for row in train_data:
+    for row in train_data[:1000]:
         # Parse genres (if possible, otherwise empty list)
         try:
             genres_data = ast.literal_eval(row[3])
@@ -154,24 +162,24 @@ for idx, user_data in enumerate(Users_data):
         train_labels.append(encode_rating(row[2]))           # 10-element target
     
     # Convert training data to torch tensors and send to device
-    X_train = torch.tensor(np.array(train_inputs, dtype=np.float32)).to(device)
-    y_train = torch.tensor(np.array(train_labels, dtype=np.float32)).to(device)
+    X_train = torch.tensor(np.array(train_inputs, dtype=np.float32))
+    y_train = torch.tensor(np.array(train_labels, dtype=np.float32))
     
     # Create model, loss function and optimizer
-    model = MovieModel().to(device)
+    model = MovieModel()
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     
     # Training loop for 5 epochs
     model.train()
-    for epoch in range(5):
+    for epoch in range(20):
         optimizer.zero_grad()
         try:
             outputs = model(X_train)
             loss = criterion(outputs, y_train)
             loss.backward()
             optimizer.step()
-            print(f"Epoch {epoch+1}/5, Loss: {loss.item():.4f}")
+            print(f"Epoch {epoch+1}/20, Loss: {loss.item():.4f}")
         except Exception as e:
             print(e)
 
@@ -195,7 +203,7 @@ for idx, user_data in enumerate(Users_data):
             input_vector = genre_encoding + vote_avg_encoding + lang_encoding + vote_count_encoding
             
             # Prepare input tensor (shape: [1, 18])
-            X_test = torch.tensor(np.array([input_vector], dtype=np.float32)).to(device)
+            X_test = torch.tensor(np.array([input_vector], dtype=np.float32))
             pred = model(X_test).cpu().numpy()[0]
             pred_sum = np.sum(pred >= 0.5)  # count number of neurons above threshold 0.5
             predicted_label = 1 if pred_sum >= 5 else 0

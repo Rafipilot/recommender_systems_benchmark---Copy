@@ -13,7 +13,10 @@ import matplotlib.pyplot as plt
 def test_train():
     correct_array = []
     for index, user_data in enumerate(Users_data):
+        print("index: ", index)
         Agent = ao.Agent(Arch, _steps=15000)
+
+        Agent.full_conn_compress = True
 
         n = len(user_data)
         split= math.floor(n*0.8)
@@ -25,7 +28,9 @@ def test_train():
         labels = []
 
 
-        for i, row in enumerate(train):
+
+        print("len train: ", len(train[:100]))
+        for i, row in enumerate(train[:100]):
             genres = []
             try:
                 genres_data = ast.literal_eval(row[3]) #for some reason the genres column is a string and not a list
@@ -65,18 +70,17 @@ def test_train():
             inputs.append(input_data)
             labels.append(label)
 
-        print("inputs: ", inputs)
-        print("labels: ", labels)
         try:
-            Agent.next_state_batch(inputs, labels, unsequenced=True, DD=True, Hamming=False, Backprop=False, Backprop_epochs=10)
+            Agent.next_state_batch(inputs, labels, unsequenced=True, DD=True, Hamming=True, Backprop=False, Backprop_epochs=10)
 
         except Exception as e:
             print(e)
 
-        print("Testing Phase:")
         correct = 0
 
-        for i, row in enumerate(test):
+
+        print("len test: ", len(test[:100]))
+        for i, row in enumerate(test[:100]):
 
             genres = []
             try:
@@ -111,7 +115,7 @@ def test_train():
             input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
 
             for i in range(5):
-                response = Agent.next_state(input_data,  DD=True, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
+                response = Agent.next_state(input_data,  DD=True, Hamming=True, Backprop=False, Backprop_type="norm")
             
             Agent.reset_state()
 
@@ -156,12 +160,11 @@ df2 = pd.read_csv("data/ratings.csv")
 
 df1['id'] = pd.to_numeric(df1['id'], errors='coerce')  
 
-user_counts = df2['userId'].value_counts()
-avg_correct_array = []
+user_counts = df2['userId'].value_counts()  ## ordering the array by the amount of times thats users ID is present 
 
-sampled_users = user_counts.index[10000:10300]  
+sampled_users = user_counts.index[0:50]  ## sampling 10k - 10.3 k users
 
-merged_df = df2[df2['userId'].isin(sampled_users)]
+merged_df = df2[df2['userId'].isin(sampled_users)] ## filtering df to only include the users we sampled abov
 
 
 
@@ -169,14 +172,8 @@ merged_df = df2[df2['userId'].isin(sampled_users)]
 merged_df = merged_df.merge(df1, left_on="movieId", right_on="id", how="inner")
 
 
-print("merged df cols: ", merged_df.columns)
-
-print("means: ", merged_df[["userId"]].mean())
-
 m= merged_df['vote_count'].quantile(0.9)
 C= merged_df['vote_average'].mean()
-merged_df = merged_df.copy().loc[merged_df['vote_count'] >= m]  
-
 
 # Define genre categories
 start_Genre = ["drama", "comedy", "action", "romance", "documentary", "thriller", "adventure", "fantasy", "crime", "horror"]
@@ -233,6 +230,10 @@ def encode_vote_avg(avg, count):
 
 sorted_merged_df = merged_df.sort_values(by=["userId"])
 
+#get 1000 reviuws per user
+
+
+
 first_pass = True
 previous_userId = None
 Users_data = []  
@@ -262,19 +263,13 @@ for j, row in sorted_merged_df.iterrows():
 if user:
     Users_data.append(user)
 
-for index, user_data in enumerate(Users_data):
-    print(f"User Group {index}:")
-    print(user_data)
-    print("\n") 
-
 now = datetime.now()
 correct_array = test_train()
 after = datetime.now()
 print("correct_array: ", correct_array)
 print("average correct: ", sum(correct_array)/len(correct_array))
 print("time: ", after - now)
-# print("next batch")
-# print(k)
+
 # 8.12.sleep(3)
 
 
