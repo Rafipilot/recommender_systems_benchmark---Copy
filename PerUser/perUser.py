@@ -2,7 +2,6 @@ import pandas as pd
 import math
 import ast # to convert the str to list
 
-import time
 import ao_core as ao
 import ao_arch as ar
 from datetime import datetime
@@ -10,13 +9,14 @@ import gc
 import matplotlib.pyplot as plt
 
 
+number_test = 100
+number_train = 300
+
 def test_train():
     correct_array = []
     for index, user_data in enumerate(Users_data):
         print("index: ", index)
         Agent = ao.Agent(Arch, _steps=15000)
-
-        Agent.full_conn_compress = True
 
         n = len(user_data)
         split= math.floor(n*0.8)
@@ -29,8 +29,8 @@ def test_train():
 
 
 
-        print("len train: ", len(train[:100]))
-        for i, row in enumerate(train[:100]):
+        print("len train: ", len(train[:number_train]))
+        for i, row in enumerate(train[:number_train]):
             genres = []
             try:
                 genres_data = ast.literal_eval(row[3]) #for some reason the genres column is a string and not a list
@@ -79,8 +79,8 @@ def test_train():
         correct = 0
 
 
-        print("len test: ", len(test[:100]))
-        for i, row in enumerate(test[:100]):
+        print("len test: ", len(test[:number_test]))
+        for i, row in enumerate(test[:number_test]):
 
             genres = []
             try:
@@ -114,7 +114,7 @@ def test_train():
 
             input_data = genre_encoding  +  vote_avg_encoding + lang_encoding + vote_count_encoding
 
-            for i in range(5):
+            for j in range(5):
                 response = Agent.next_state(input_data,  DD=True, Hamming=True, Backprop=False, Backprop_type="norm")
             
             Agent.reset_state()
@@ -142,8 +142,7 @@ def test_train():
                 rating_encoding = 10*[0]
             #Agent.next_state(input_data, rating_encoding, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
             #Agent.reset_state()
-        n = len(test)
-        correct_array.append(correct/n)
+        correct_array.append(correct/number_test)
         correct = 0
         Agent = None
         del(Agent)
@@ -152,7 +151,7 @@ def test_train():
 
 
 # Define architecture and agent
-Arch = ar.Arch(arch_i=[10, 3, 3, 2], arch_z=[10], arch_c=[])
+Arch = ar.Arch(arch_i=[10, 3, 3, 2], arch_z=[10], arch_c=[], connector_function="forward_forward_conn",)
 
 # Load datasets
 df1 = pd.read_csv("data/movies_metadata.csv")
