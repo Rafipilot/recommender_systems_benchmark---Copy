@@ -9,17 +9,18 @@ import gc
 import matplotlib.pyplot as plt
 
 
-number_test = 100
-number_train = 300
+number_examples = 300
+split= 0.8
+
 
 def test_train():
     correct_array = []
-    for index, user_data in enumerate(Users_data):
+    for index, user_data in enumerate(Users_data[:number_examples]):
         print("index: ", index)
         Agent = ao.Agent(Arch, _steps=15000)
 
         n = len(user_data)
-        split= math.floor(n*0.8)
+        split= math.floor(n*split)
         train = user_data[:split]
         test = user_data[split:]
 
@@ -29,8 +30,8 @@ def test_train():
 
 
 
-        print("len train: ", len(train[:number_train]))
-        for i, row in enumerate(train[:number_train]):
+        print("len train: ", len(train))
+        for i, row in enumerate(train):
             genres = []
             try:
                 genres_data = ast.literal_eval(row[3]) #for some reason the genres column is a string and not a list
@@ -79,8 +80,8 @@ def test_train():
         correct = 0
 
 
-        print("len test: ", len(test[:number_test]))
-        for i, row in enumerate(test[:number_test]):
+        print("len test: ", len(test))
+        for i, row in enumerate(test):
 
             genres = []
             try:
@@ -142,6 +143,8 @@ def test_train():
                 rating_encoding = 10*[0]
             #Agent.next_state(input_data, rating_encoding, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
             #Agent.reset_state()
+
+        number_test = (1-split) * number_examples
         correct_array.append(correct/number_test)
         correct = 0
         Agent = None
