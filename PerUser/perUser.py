@@ -9,11 +9,8 @@ import gc
 import matplotlib.pyplot as plt
 
 
-number_examples = 300
-split= 0.8
 
-
-def test_train():
+def test_train(number_examples = 300, number_reviews=None, split= 0.8, top_percentile=100):
     correct_array = []
     for index, user_data in enumerate(Users_data[:number_examples]):
         print("index: ", index)
