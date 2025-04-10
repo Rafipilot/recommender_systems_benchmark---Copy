@@ -86,7 +86,7 @@ def encode_vote_avg(avg: float) -> np.ndarray:
 
 def prepare_data(reviews_per_user:int | None = None,
                  training_ratio:float | None = 0.8,
-                 num_examples:int= 10000,
+                 num_examples:int | None = 10000,
                  top_percentile:float | None = None) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
     """
     Prepares the data to be input for different ML models
@@ -130,7 +130,8 @@ def prepare_data(reviews_per_user:int | None = None,
         heavy_users = user_review_counts[user_review_counts >= reviews_per_user].index
         merged = merged[merged['userId'].isin(heavy_users)].groupby('userId').sample(n=reviews_per_user, random_state=9)
 
-    merged = merged.sample(n=min(num_examples, len(merged)), random_state=99)
+    if num_examples is not None:
+        merged = merged.sample(n=min(num_examples, len(merged)), random_state=99)
 
     merged['genres_enc'] = merged['genres'].apply(encode_genres)
     merged['lang_enc'] = merged['original_language'].apply(encode_lang)
