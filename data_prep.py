@@ -204,7 +204,7 @@ def prepare_data(reviews_per_user:int | None = None,
     if user:
         Users_data.append(user)
 
-    return user
+    return Users_data
 
 
 if __name__ == "__main__":
