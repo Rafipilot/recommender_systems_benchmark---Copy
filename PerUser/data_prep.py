@@ -97,7 +97,7 @@ def prepare_data(reviews_per_user:int | None = None,
     :return:
     """
     # Download dataset
-    path = kagglehub.dataset_download("rounakbanik/the-movies-dataset")
+    path = "data"
 
     # Load data
     movies_metadata = pd.read_csv(os.path.join(path, "movies_metadata.csv"), low_memory=False)
@@ -119,7 +119,7 @@ def prepare_data(reviews_per_user:int | None = None,
         movies_metadata = movies_metadata[movies_metadata['vote_average'] >= m]
 
     # Sorting rows according to time, and deleting the duplicate rows keeping only the last occurrence
-    ratings.sort_values('timestamp', inplace=True)
+    ratings.sort_values(['userId', 'timestamp'], inplace=True)
     ratings = ratings.drop_duplicates(['userId', 'movieId'], keep='last')
 
 
@@ -144,6 +144,8 @@ def prepare_data(reviews_per_user:int | None = None,
     movie_encoder = preprocessing.LabelEncoder()
     merged['user_id'] = user_encoder.fit_transform(merged['userId'])
     merged['movie_id'] = movie_encoder.fit_transform(merged['movieId'])
+
+    merged = merged[['userId', 'movieId', 'target', 'genres_enc', 'lang_enc', 'vote_avg_enc', 'vote_count_enc']]
 
     if training_ratio is not None:
         train_df, val_df = model_selection.train_test_split(merged, train_size=training_ratio, stratify=merged['target'], random_state=999)
