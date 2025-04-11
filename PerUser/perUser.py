@@ -8,12 +8,10 @@ from datetime import datetime
 import gc 
 import matplotlib.pyplot as plt
 
-
-number_examples = 300
-split= 0.8
+from data_prep import prepare_data
 
 
-def test_train():
+def test_train(number_examples = 300, number_reviews=None, split= 0.8, top_percentile=100):
     correct_array = []
     for index, user_data in enumerate(Users_data[:number_examples]):
         print("index: ", index)
@@ -236,34 +234,7 @@ sorted_merged_df = merged_df.sort_values(by=["userId"])
 
 
 
-first_pass = True
-previous_userId = None
-Users_data = []  
-user = []                                                                                                                                                    
-
-for j, row in sorted_merged_df.iterrows():
-    if first_pass:
-        first_pass = False
-        la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
-        user.append(la)
-        previous_userId = row["userId"]
-    else:
-        if row["userId"] == previous_userId:
-            la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
-            user.append(la)
-        else:
-            Users_data.append(user)
-            user = []
-
-            la = [row["userId"], row["movieId"], row["rating"], row["genres"], row["adult"], row["original_language"], row["vote_average"], row["vote_count"]]
-            user.append(la)
-            previous_userId = row["userId"]
-
-
-
-# Add previous user data 
-if user:
-    Users_data.append(user)
+User_data = prepare_data(reviews_per_user=100)
 
 now = datetime.now()
 correct_array = test_train()
