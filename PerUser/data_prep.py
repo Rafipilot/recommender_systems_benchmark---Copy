@@ -1,10 +1,15 @@
+from typing import Any
+
 import kagglehub
 import pandas as pd
 import numpy as np
 import os
 import ast
+
+from pandas import Series
 from sklearn import model_selection, preprocessing
 import math
+import time
 
 
 def encode_genres(s: str) -> np.ndarray:
@@ -85,21 +90,23 @@ def encode_vote_avg(avg: float) -> np.ndarray:
 
 
 def prepare_data(reviews_per_user:int | None = None,
-                 training_ratio:float | None = 0.8,
-                 num_examples:int | None = 10000,
-                 top_percentile:float | None = None) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
+                 top_percentile:float | None = None,
+                 num_user: int | None = None,
+                 per_user : bool = True) -> tuple[Any, Any] | Any:
     """
     Prepares the data to be input for different ML models
+    :param per_user:
+    :param num_user:
     :param reviews_per_user: number of reviews you want from each user in the final database
-    :param training_ratio: if specified, train:test ratio, else the entire dataset as is
-    :param num_examples: number of examples in the final dataset (before splitting into train-test)
     :param top_percentile: if specified, only movies with vote_count in the top_percentile would be considered for training
     :return:
     """
     # Download dataset
+    print("Downloading dataset..")
     path = "data"
 
     # Load data
+    print("Loading dataset..")
     movies_metadata = pd.read_csv(os.path.join(path, "movies_metadata.csv"), low_memory=False)
     ratings = pd.read_csv(os.path.join(path, "ratings.csv"))
 
@@ -107,37 +114,52 @@ def prepare_data(reviews_per_user:int | None = None,
     movies_metadata['id'] = pd.to_numeric(movies_metadata['id'], errors='coerce')
 
     # Handling missing values
+    print("Handling missing values...")
     movies_metadata = movies_metadata.dropna(subset=['id'])
     movies_metadata['genres'] = movies_metadata['genres'].fillna('[]')
     movies_metadata['original_language'] = movies_metadata['original_language'].fillna('en')
     movies_metadata['vote_count'] = movies_metadata['vote_count'].fillna(0).astype(int)
     movies_metadata['vote_average'] = movies_metadata['vote_average'].fillna(0)
 
+    # Filter out popular movies
     if top_percentile is not None:
+        print(f"Filtering movies in {top_percentile} of vote_count")
         m = ratings['vote_count'].quantile(top_percentile)
-        C = ratings['vote_average'].mean()
         movies_metadata = movies_metadata[movies_metadata['vote_average'] >= m]
 
     # Sorting rows according to time, and deleting the duplicate rows keeping only the last occurrence
     ratings.sort_values(['userId', 'timestamp'], inplace=True)
     ratings = ratings.drop_duplicates(['userId', 'movieId'], keep='last')
 
-
+    # Merging the ratings and movies dataset
+    print("Merging rating and movies dataset..")
     merged = ratings.merge(movies_metadata, left_on='movieId', right_on='id', how='inner')
 
+    # If reviews per user is specified, then filter out all the users wih `reviews_per_user` or more reviews
     if reviews_per_user is not None:
-        user_review_counts = merged.groupby('userId')['rating'].count()
-        heavy_users = user_review_counts[user_review_counts >= reviews_per_user].index
-        merged = merged[merged['userId'].isin(heavy_users)].groupby('userId').sample(n=reviews_per_user, random_state=9)
+        print(f"reviews_per_user is {reviews_per_user}")
+        user_review_counts = merged['userId'].value_counts().reset_index()
+        user_review_counts.columns = ['userId', 'num_ratings']
+        print(f"There are {len(user_review_counts)} total users")
+        heavy_users = user_review_counts[user_review_counts['num_ratings'] >= reviews_per_user]
+        print(f"There are {len(heavy_users)} users with at least {reviews_per_user} reviews")
 
-    if num_examples is not None:
-        merged = merged.sample(n=min(num_examples, len(merged)), random_state=99)
+        if num_user is not None:
+            if len(heavy_users) < num_user:
+                raise ValueError(f"Only {len(heavy_users)} users have ≥{reviews_per_user} ratings (requested: {num_user})")
+            print(f"But we only want {num_user} users..")
+            sample_users = heavy_users['userId'].sample(n=num_user, random_state=77).tolist()
+            merged = merged[merged['userId'].isin(sample_users)].groupby('userId').sample(n=reviews_per_user, random_state=9)
+            print(f"merge.shape after sampling {num_user} users : {merged.shape}")
+        else:
+            merged = merged[merged['userId'].isin(heavy_users['userId'])].groupby('userId').sample(n=reviews_per_user, random_state=9)
+            print(f"merge.shape after filtering out users with more than {reviews_per_user} reviews : {merged.shape}")
 
     merged['genres_enc'] = merged['genres'].apply(encode_genres)
     merged['lang_enc'] = merged['original_language'].apply(encode_lang)
     merged['vote_count_enc'] = merged['vote_count'].apply(encode_vote_count)
     merged['vote_avg_enc'] = merged['vote_average'].apply(encode_vote_avg)
-    merged['target'] = (merged['rating'] >= 3).astype(int)  # Binary classification target
+    merged['rating'] = (merged['rating'] >= 3).astype(int)  # Binary classification target
 
     # Label encoding
     user_encoder = preprocessing.LabelEncoder()
@@ -145,10 +167,48 @@ def prepare_data(reviews_per_user:int | None = None,
     merged['user_id'] = user_encoder.fit_transform(merged['userId'])
     merged['movie_id'] = movie_encoder.fit_transform(merged['movieId'])
 
-    merged = merged[['userId', 'movieId', 'target', 'genres_enc', 'lang_enc', 'vote_avg_enc', 'vote_count_enc']]
+    merged = merged[['userId', 'movieId', 'rating', 'genres_enc', 'lang_enc', 'vote_avg_enc', 'vote_count_enc']]
 
-    if training_ratio is not None:
-        train_df, val_df = model_selection.train_test_split(merged, train_size=training_ratio, stratify=merged['target'], random_state=999)
-        return train_df.reset_index(drop=True), val_df.reset_index(drop=True)
-    else:
+    if not per_user:
         return merged
+
+    sorted_merged_df = merged.sort_values(by=["userId"])
+
+    first_pass = True
+    previous_userId = None
+    Users_data = []
+    user = []
+
+    for j, row in sorted_merged_df.iterrows():
+        if first_pass:
+            first_pass = False
+            la = [row["userId"], row["movieId"], row["rating"], row["genres_enc"], row["lang_enc"],
+                  row["vote_avg_enc"], row["vote_count_enc"]]
+            user.append(la)
+            previous_userId = row["userId"]
+        else:
+            if row["userId"] == previous_userId:
+                la = [row["userId"], row["movieId"], row["rating"], row["genres_enc"],
+                      row["lang_enc"], row["vote_avg_enc"], row["vote_count_enc"]]
+                user.append(la)
+            else:
+                Users_data.append(user)
+                user = []
+
+                la = [row["userId"], row["movieId"], row["rating"], row["genres_enc"],
+                      row["lang_enc"], row["vote_avg_enc"], row["vote_count_enc"]]
+                user.append(la)
+                previous_userId = row["userId"]
+
+    # Add previous user data
+    if user:
+        Users_data.append(user)
+
+    return Users_data
+
+
+if __name__ == "__main__":
+    df = prepare_data(reviews_per_user=10)
+    print(df.head(5))
+    print(df['userId'].nunique())
+    print(df.groupby('userId')['userId'].count())
