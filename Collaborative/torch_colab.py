@@ -1,32 +1,12 @@
-print("Importing all libraries...")
-import kagglehub
 import torch
-import pandas as pd
 import numpy as np
-import os
-import ast
 from torch.utils.data import Dataset, DataLoader
 from sklearn import model_selection, preprocessing, metrics
 import torch.nn as nn
-import matplotlib.pyplot as plt
-import math
 import time
 from data_prep import prepare_data
 
-pd.set_option("display.max_columns", None)
-pd.set_option("display.max_rows", None)
-print("Imported!")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using {device} for processing")
-
-df = prepare_data(num_user=1000, reviews_per_user=500, per_user=False)
-
-# Label encoding
-user_encoder = preprocessing.LabelEncoder()
-movie_encoder = preprocessing.LabelEncoder()
-df['user_id'] = user_encoder.fit_transform(df['userId'])
-df['movie_id'] = movie_encoder.fit_transform(df['movieId'])
 
 # Dataset class
 class MovieDataset(Dataset):
@@ -55,7 +35,6 @@ class MovieDataset(Dataset):
 
 
 # Model architecture
-print("Initialized data for training..")
 class RecSysModel(nn.Module):
     def __init__(self, num_users, num_movies):
         super().__init__()
@@ -77,79 +56,92 @@ class RecSysModel(nn.Module):
         features = torch.cat([u, m, genres, lang, vote_count, vote_avg], dim=1)
         return self.fc(features)
 
+def run_colab_model(num_users, reviews_per_user):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"using {device} for training")
+    df = prepare_data(num_user=num_users, reviews_per_user=reviews_per_user, per_user=False)
 
-# Train/Test split
-print("Train-Validation split...")
-train_df, val_df = model_selection.train_test_split(
-    df, test_size=0.2, stratify=df['rating'], random_state=42)
+    # Label encoding
+    user_encoder = preprocessing.LabelEncoder()
+    movie_encoder = preprocessing.LabelEncoder()
+    df['user_id'] = user_encoder.fit_transform(df['userId'])
+    df['movie_id'] = movie_encoder.fit_transform(df['movieId'])
 
-train_ds = MovieDataset(train_df)
-val_ds = MovieDataset(val_df)
+    # Train/Test split
+    train_df, val_df = model_selection.train_test_split(
+        df, test_size=0.2, stratify=df['rating'], random_state=42)
 
-print("Loading data to model..")
-train_loader = DataLoader(train_ds, batch_size=256, shuffle=True)
-val_loader = DataLoader(val_ds, batch_size=256)
+    train_ds = MovieDataset(train_df)
+    val_ds = MovieDataset(val_df)
 
-# Initialize model
-print("Initialized model...")
-model = RecSysModel(
-    num_users=len(user_encoder.classes_),
-    num_movies=len(movie_encoder.classes_)
-).to(device)
+    train_loader = DataLoader(train_ds, batch_size=256, shuffle=True)
+    val_loader = DataLoader(val_ds, batch_size=256)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-criterion = nn.BCEWithLogitsLoss()
+    # Initialize model
+    model = RecSysModel(
+        num_users=len(user_encoder.classes_),
+        num_movies=len(movie_encoder.classes_)
+    ).to(device)
 
-# Training loop
-epochs = 25
-losses = []
-print("Training started...")
-epoch_start = time.time()
-for epoch in range(epochs):
-    start_time=time.time()
-    model.train()
-    epoch_loss = 0
-    for batch in train_loader:
-        optimizer.zero_grad()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.BCEWithLogitsLoss()
 
-        inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
-        output = model(**inputs)
-        loss = criterion(output.squeeze(), batch['rating'].to(device))
+    # Training loop
+    epochs = 25
+    losses = []
+    epoch_start = time.time()
+    for epoch in range(epochs):
+        start_time=time.time()
+        model.train()
+        epoch_loss = 0
+        for batch in train_loader:
+            optimizer.zero_grad()
 
-        loss.backward()
-        optimizer.step()
-        epoch_loss += loss.item()
+            inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
+            output = model(**inputs)
+            loss = criterion(output.squeeze(), batch['rating'].to(device))
 
-    avg_loss = epoch_loss / len(train_loader)
-    losses.append(avg_loss)
-    print(f"Epoch {epoch + 1}/{epochs} - Loss: {avg_loss:.4f} - Time Taken: {time.time()-start_time:.2f} secs")
-print(f"Took {time.time() - epoch_start:.2f} secs for {epochs} epochs")
-# Plot training loss
-plt.plot(losses)
-plt.title("Training Loss")
-plt.xlabel("Epoch")
-plt.ylabel("BCE Loss")
-plt.show()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item()
 
-# Evaluation
-model.eval()
-val_preds = []
-val_targets = []
-with torch.no_grad():
-    for batch in val_loader:
-        inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
-        outputs = model(**inputs).squeeze().sigmoid()
-        val_preds.extend(outputs.cpu().numpy())
-        val_targets.extend(batch['rating'].cpu().numpy())
+        avg_loss = epoch_loss / len(train_loader)
+        losses.append(avg_loss)
+        print(f"Epoch {epoch + 1}/{epochs} - Loss: {avg_loss:.4f} - Time Taken: {time.time()-start_time:.2f} secs")
 
-print(f"Validation ROC-AUC: {metrics.roc_auc_score(val_targets, val_preds):.4f}")
-print(f"Validation Accuracy: {metrics.accuracy_score(val_targets, np.round(val_preds)):.4f}")
+    # Evaluation
+    model.eval()
+    val_preds = []
+    val_targets = []
+    with torch.no_grad():
+        for batch in val_loader:
+            inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
+            outputs = model(**inputs).squeeze().sigmoid()
+            val_preds.extend(outputs.cpu().numpy())
+            val_targets.extend(batch['rating'].cpu().numpy())
 
-# Example prediction
-test_sample = next(iter(val_loader))
-with torch.no_grad():
-    inputs = {k: v.to(device) for k, v in test_sample.items() if k != 'rating'}
-    outputs = model(**inputs).sigmoid()
-    print("\nSample predictions:")
-    print("Predicted:", outputs[:5].cpu().numpy().flatten())
-    print("Actual:   ", test_sample['rating'][:5].numpy())
+    # print(f"Validation ROC-AUC: {metrics.roc_auc_score(val_targets, val_preds):.4f}")
+    # print(f"Validation Accuracy: {metrics.accuracy_score(val_targets, np.round(val_preds)):.4f}")
+    time_taken = time.time() - epoch_start
+    accuracy = metrics.accuracy_score(val_targets, np.round(val_preds))
+
+    return accuracy, time_taken
+
+if __name__=="__main__":
+    accuracies = {}
+    times = {}
+    num_user_list = [100, 500, 1000]
+    num_reviews_list = [50, 200, 500, 1000]
+    for i in num_user_list:
+        for j in num_reviews_list:
+            try :
+                acc, t = run_colab_model(i, j)
+                print(f'accuracy for {i} num users and {j} reviews per user is {acc}')
+                print(f'time taken was {t}')
+                accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
+                times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
+            except:
+                pass
+
+    print(accuracies)
+    print(times)

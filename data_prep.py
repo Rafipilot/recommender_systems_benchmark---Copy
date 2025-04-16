@@ -1,15 +1,10 @@
 from typing import Any
-
 import kagglehub
 import pandas as pd
 import numpy as np
 import os
 import ast
-
-from pandas import Series
-from sklearn import model_selection, preprocessing
 import math
-import time
 
 
 def encode_genres(s: str) -> np.ndarray:
@@ -92,7 +87,7 @@ def encode_vote_avg(avg: float) -> np.ndarray:
 def prepare_data(reviews_per_user:int | None = None,
                  top_percentile:float | None = None,
                  num_user: int | None = None,
-                 per_user : bool = True) -> tuple[Any, Any] | Any:
+                 per_user : bool = True):
     """
     Prepares the data to be input for different ML models
     :param per_user:
@@ -103,7 +98,7 @@ def prepare_data(reviews_per_user:int | None = None,
     """
     # Download dataset
     print("Downloading dataset..")
-    path = "data"
+    path = kagglehub.dataset_download("rounakbanik/the-movies-dataset")
 
     # Load data
     print("Loading dataset..")

@@ -2,14 +2,16 @@ import math
 import numpy as np # to convert the str to list
 
 import ao_core as ao
-import ao_arch as ar
+
 from datetime import datetime
 import gc 
 
 from data_prep import prepare_data
 
 
-def test_train(split= 0.8):
+def run_ao_model(num_users, reviews_per_user, Arch, split=0.8):
+    Users_data = prepare_data(reviews_per_user=reviews_per_user, num_user=num_users)
+    now = datetime.now()
     correct_array = []
     for index, user_data in enumerate(Users_data):
         print("index: ", index)
@@ -127,29 +129,30 @@ def test_train(split= 0.8):
         Agent = None
         del(Agent)
         gc.collect()
-    return correct_array
+    after = datetime.now()
 
 
-# Define architecture and agent
-Arch = ar.Arch(arch_i=[10, 3, 3, 10], arch_z=[10], arch_c=[], connector_function="forward_forward_conn",)
+    avg_accuracy = sum(correct_array)/len(correct_array)
+    time_taken = after - now
+    return avg_accuracy, time_taken
 
 
+if __name__=="__main__":
+    Arch = ao.Arch(arch_i=[10, 3, 3, 10], arch_z=[10], arch_c=[], connector_function="forward_forward_conn", )
+    accuracies = {}
+    times = {}
+    num_user_list = [100]#, 500, 1000]
+    num_reviews_list = [50]#, 200, 500, 1000]
+    for i in num_user_list:
+        for j in num_reviews_list:
+            try :
+                acc, t = run_ao_model(i, j, Arch )
+                print(f'accuracy for {i} num users and {j} reviews per user is {acc}')
+                print(f'time taken was {t}')
+                accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
+                times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
+            except:
+                pass
 
-
-Users_data = prepare_data(reviews_per_user=100, num_user=10)
-print(Users_data[0][:5])
-
-now = datetime.now()
-correct_array = test_train()
-after = datetime.now()
-print("correct_array: ", correct_array)
-print("average correct: ", sum(correct_array)/len(correct_array))
-print("time: ", after - now)
-
-# 8.12.sleep(3)
-
-
-# plt.plot(avg_correct_array)
-# plt.xlabel("Index")
-# plt.ylabel("Value")
-# plt.show()
+    print(accuracies)
+    print(times)
