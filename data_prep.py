@@ -1,15 +1,10 @@
 from typing import Any
-
 import kagglehub
 import pandas as pd
 import numpy as np
 import os
 import ast
-
-from pandas import Series
-from sklearn import model_selection, preprocessing
 import math
-import time
 
 
 def encode_genres(s: str) -> np.ndarray:
@@ -92,7 +87,7 @@ def encode_vote_avg(avg: float) -> np.ndarray:
 def prepare_data(reviews_per_user:int | None = None,
                  top_percentile:float | None = None,
                  num_user: int | None = None,
-                 per_user : bool = True) -> tuple[Any, Any] | Any:
+                 per_user : bool = True):
     """
     Prepares the data to be input for different ML models
     :param per_user:
@@ -103,7 +98,7 @@ def prepare_data(reviews_per_user:int | None = None,
     """
     # Download dataset
     print("Downloading dataset..")
-    path = "data"
+    path = kagglehub.dataset_download("rounakbanik/the-movies-dataset")
 
     # Load data
     print("Loading dataset..")
@@ -161,11 +156,7 @@ def prepare_data(reviews_per_user:int | None = None,
     merged['vote_avg_enc'] = merged['vote_average'].apply(encode_vote_avg)
     merged['rating'] = (merged['rating'] >= 3).astype(int)  # Binary classification target
 
-    # Label encoding
-    user_encoder = preprocessing.LabelEncoder()
-    movie_encoder = preprocessing.LabelEncoder()
-    merged['user_id'] = user_encoder.fit_transform(merged['userId'])
-    merged['movie_id'] = movie_encoder.fit_transform(merged['movieId'])
+
 
     merged = merged[['userId', 'movieId', 'rating', 'genres_enc', 'lang_enc', 'vote_avg_enc', 'vote_count_enc']]
 
@@ -205,10 +196,3 @@ def prepare_data(reviews_per_user:int | None = None,
         Users_data.append(user)
 
     return Users_data
-
-
-if __name__ == "__main__":
-    df = prepare_data(reviews_per_user=10)
-    print(df.head(5))
-    print(df['userId'].nunique())
-    print(df.groupby('userId')['userId'].count())
