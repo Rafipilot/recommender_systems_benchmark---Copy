@@ -103,7 +103,7 @@ def prepare_data(reviews_per_user:int | None = None,
     """
     # Download dataset
     print("Downloading dataset..")
-    path = "data"
+    path = kagglehub.dataset_download("rounakbanik/the-movies-dataset")
 
     # Load data
     print("Loading dataset..")
