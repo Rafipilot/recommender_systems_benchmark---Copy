@@ -31,7 +31,7 @@ for iter in range(5):
         colab_acc_list.append(colab_acc)
         colab_time_list.append(colab_time)
 
-    df['iter_'+str(iter)+'ao_avg_accuracy'] = ao_acc_list
+    df['iter_' + str(iter) + 'ao_avg_accuracy'] = ao_acc_list
     df['iter_' + str(iter) + 'ao_median_accuracy'] = ao_med_list
     df['iter_' + str(iter) + 'ao_time'] = ao_time_list
     df['iter_' + str(iter) + 'torch_avg_accuracy'] = torch_acc_list
