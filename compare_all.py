@@ -2,7 +2,6 @@ from Collaborative.torch_colab import run_colab_model
 from PerUser.perUser_pytorch import run_torch_per_user
 from PerUser.perUser import run_ao_model
 import pandas as pd
-import os
 
 data = {'num_users':[100, 100, 100, 100, 500, 500, 500, 1000, 1000, 1000], 'reviews_per_user':[50, 200, 500, 1000, 50, 200, 500, 50, 200, 500]}
 df = pd.DataFrame(data)

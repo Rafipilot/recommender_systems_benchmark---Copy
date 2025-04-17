@@ -1,11 +1,9 @@
 import math
-import numpy as np # to convert the str to list
+import numpy as np
 from statistics import median
 import ao_core as ao
-
 import time
-import gc 
-
+import gc
 from data_prep import prepare_data
 
 
