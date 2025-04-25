@@ -38,7 +38,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
     # Process each user group
     now = time.time()
     for idx, user_data in enumerate(Users_data):
-        print(f"\nUser Group {idx}:")
+        # print(f"\nUser Group {idx}:")
         n = len(user_data)
         split_index = math.floor(n * split)
         train_data = user_data[:split_index]
@@ -81,7 +81,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
                 loss = criterion(outputs, y_train)
                 loss.backward()
                 optimizer.step()
-                print(f"Epoch {epoch + 1}/20, Loss: {loss.item():.4f}")
+                # print(f"Epoch {epoch + 1}/25, Loss: {loss.item():.4f}")
             except Exception as e:
                 print(e)
 
@@ -117,7 +117,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
 
         accuracy = correct / len(test_data) if test_data else 0
         correct_array.append(accuracy)
-        print(f"User group {idx} accuracy: {accuracy:.2f}")
+        # print(f"User group {idx} accuracy: {accuracy:.2f}")
 
     after = time.time()
     overall_accuracy = sum(correct_array) / len(correct_array) if correct_array else 0
@@ -131,8 +131,8 @@ if __name__ == "__main__":
 
     accuracies = {}
     times = {}
-    num_user_list = [100]#, 500, 1000]
-    num_reviews_list = [50]#, 200, 500, 1000]
+    num_user_list = [100, 200]
+    num_reviews_list = [None]#, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
             try:

@@ -13,11 +13,11 @@ def run_ao_model(num_users, reviews_per_user, split=0.8):
     now = time.time()
     correct_array = []
     for index, user_data in enumerate(Users_data):
-        print("index: ", index)
+        # print("index: ", index)
         Agent = ao.Agent(Arch, _steps=15000)
 
         n = len(user_data)
-        print("len user data: ", len(user_data))
+        # print("len user data: ", len(user_data))
         split_index= math.floor(n*split)
         train = user_data[:split_index]
         test = user_data[split_index:]
@@ -29,7 +29,7 @@ def run_ao_model(num_users, reviews_per_user, split=0.8):
 
 
 
-        print("len train: ", len(train))
+        # print("len train: ", len(train))
         for i, row in enumerate(train):
 
 
@@ -73,7 +73,7 @@ def run_ao_model(num_users, reviews_per_user, split=0.8):
         correct = 0
 
 
-        print("len test: ", len(test))
+        # print("len test: ", len(test))
         for i, row in enumerate(test):
                 
             genres_data = row[3]
@@ -140,8 +140,9 @@ if __name__=="__main__":
 
     accuracies = {}
     times = {}
-    num_user_list = [100]#, 500, 1000]
-    num_reviews_list = [50]#, 200, 500, 1000]
+    median_acc = {}
+    num_user_list = [100, 200]
+    num_reviews_list = [None]#, 200, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
             try :
@@ -150,8 +151,10 @@ if __name__=="__main__":
                 print(f'time taken was {t}')
                 accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
                 times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
+                median_acc[str(i) + " num_users + " + str(j) + " reviews per user"] = med
             except:
                 pass
 
     print(accuracies)
+    print(median_acc)
     print(times)
