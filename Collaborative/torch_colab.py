@@ -58,7 +58,7 @@ class RecSysModel(nn.Module):
 
 def run_colab_model(num_users, reviews_per_user):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"using {device} for training")
+    # print(f"using {device} for training")
     df = prepare_data(num_user=num_users, reviews_per_user=reviews_per_user, per_user=False)
 
     # Label encoding
@@ -107,7 +107,7 @@ def run_colab_model(num_users, reviews_per_user):
 
         avg_loss = epoch_loss / len(train_loader)
         losses.append(avg_loss)
-        print(f"Epoch {epoch + 1}/{epochs} - Loss: {avg_loss:.4f} - Time Taken: {time.time()-start_time:.2f} secs")
+        # print(f"Epoch {epoch + 1}/{epochs} - Loss: {avg_loss:.4f} - Time Taken: {time.time()-start_time:.2f} secs")
 
     # Evaluation
     model.eval()
@@ -130,8 +130,8 @@ def run_colab_model(num_users, reviews_per_user):
 if __name__=="__main__":
     accuracies = {}
     times = {}
-    num_user_list = [100, 500, 1000]
-    num_reviews_list = [50, 200, 500, 1000]
+    num_user_list = [100, 200]#, 1000]
+    num_reviews_list = [None]#50, 200, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
             try :

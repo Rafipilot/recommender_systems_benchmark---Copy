@@ -1,28 +1,26 @@
 import math
-import numpy as np # to convert the str to list
-
+import numpy as np
+from statistics import median
 import ao_core as ao
-
-from datetime import datetime
-import gc 
-
+import time
+import gc
 from data_prep import prepare_data
 
 
-def run_ao_model(num_users, reviews_per_user, Arch, split=0.8):
+def run_ao_model(num_users, reviews_per_user, split=0.8):
+    Arch = ao.Arch(arch_i=[10, 3, 3, 10], arch_z=[10], arch_c=[], connector_function="forward_forward_conn", )
     Users_data = prepare_data(reviews_per_user=reviews_per_user, num_user=num_users)
-    now = datetime.now()
+    now = time.time()
     correct_array = []
     for index, user_data in enumerate(Users_data):
-        print("index: ", index)
+        # print("index: ", index)
         Agent = ao.Agent(Arch, _steps=15000)
 
         n = len(user_data)
-        print("len user data: ", len(user_data))
-        split= math.floor(n*0.8)
-        print("split: ", split)
-        train = user_data[:split]
-        test = user_data[split:]
+        # print("len user data: ", len(user_data))
+        split_index= math.floor(n*split)
+        train = user_data[:split_index]
+        test = user_data[split_index:]
         number_test = len(test)
 
         # Training Phase
@@ -31,7 +29,7 @@ def run_ao_model(num_users, reviews_per_user, Arch, split=0.8):
 
 
 
-        print("len train: ", len(train))
+        # print("len train: ", len(train))
         for i, row in enumerate(train):
 
 
@@ -75,7 +73,7 @@ def run_ao_model(num_users, reviews_per_user, Arch, split=0.8):
         correct = 0
 
 
-        print("len test: ", len(test))
+        # print("len test: ", len(test))
         for i, row in enumerate(test):
                 
             genres_data = row[3]
@@ -129,30 +127,34 @@ def run_ao_model(num_users, reviews_per_user, Arch, split=0.8):
         Agent = None
         del(Agent)
         gc.collect()
-    after = datetime.now()
+    after = time.time()
 
 
     avg_accuracy = sum(correct_array)/len(correct_array)
+    avg_median = median(correct_array)
     time_taken = after - now
-    return avg_accuracy, time_taken
+    return avg_accuracy, avg_median, time_taken
 
 
 if __name__=="__main__":
-    Arch = ao.Arch(arch_i=[10, 3, 3, 10], arch_z=[10], arch_c=[], connector_function="forward_forward_conn", )
+
     accuracies = {}
     times = {}
-    num_user_list = [100]#, 500, 1000]
-    num_reviews_list = [50]#, 200, 500, 1000]
+    median_acc = {}
+    num_user_list = [100, 200]
+    num_reviews_list = [None]#, 200, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
             try :
-                acc, t = run_ao_model(i, j, Arch )
-                print(f'accuracy for {i} num users and {j} reviews per user is {acc}')
+                acc, med, t = run_ao_model(i, j)
+                print(f'accuracy for {i} num users and {j} reviews per user is {acc} and median is {med}')
                 print(f'time taken was {t}')
                 accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
                 times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
+                median_acc[str(i) + " num_users + " + str(j) + " reviews per user"] = med
             except:
                 pass
 
     print(accuracies)
+    print(median_acc)
     print(times)
