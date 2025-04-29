@@ -6,7 +6,7 @@ import pandas as pd
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
-data = {'num_users':[100, 100, 100, 100, 500, 500, 500, 500, 1000, 1000, 1000, 1000], 'reviews_per_user':[5, 10, 15, 25, 5, 10, 15, 25, 5, 10, 15, 25]}
+data = {'num_users':[100, 100, 100, 100], 'reviews_per_user':[5, 10, 15, 25]}
 df = pd.DataFrame(data)
 df = df.fillna(0)
 for iteration in range(5):
