@@ -77,13 +77,17 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
             label = rating_encoding
 
             inputs.append(input_data)
-            labels.append(label)
+            labels.append(label.tolist())
 
         # The Agent learns when we provide the inputs along with the labels. By specifying unsequenced=True, we're asking the Agent
         # to disregard the order in which inputs are provided (would be set False, if, say, you're doing timeseries forecasting)
         # DD stands for discriminative distance, and Hamming is for hamming distance. Since both of them are True, we'll calculate
         # the predictions using DD first, and if that fails to converge, then use Hamming distances.
         # Backprop is set to False, so Backprop_epochs aren't doing anything here
+        
+        
+        print("labels: ", labels)
+        
         Agent.next_state_batch(inputs, labels, unsequenced=True, DD=True, Hamming=True, Backprop=False, Backprop_epochs=10)
 
         correct = 0
@@ -103,12 +107,6 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
                 response = Agent.next_state(input_data, unsequenced=True, DD=True, Hamming=True, Backprop=False, Backprop_type="norm")
             
             Agent.reset_state()
-
-            if rating_encoding == 1:
-                rating_encoding = 10*[1]
-            else:
-                rating_encoding = 10*[0]
-
 
 
             distance = abs(sum(rating_encoding)-sum(response))
@@ -135,19 +133,18 @@ if __name__=="__main__":
     accuracies = {}
     times = {}
     median_acc = {}
-    num_user_list = [100, 200]
-    num_reviews_list = [None]#, 200, 500, 1000]
+    num_user_list = [1]
+    num_reviews_list = [50]#, 200, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
-            try :
-                acc, med, t = run_ao_model(i, j)
-                print(f'accuracy for {i} num users and {j} reviews per user is {acc} and median is {med}')
-                print(f'time taken was {t}')
-                accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
-                times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
-                median_acc[str(i) + " num_users + " + str(j) + " reviews per user"] = med
-            except:
-                pass
+
+            acc, med, t = run_ao_model(i, j)
+            print(f'accuracy for {i} num users and {j} reviews per user is {acc} and median is {med}')
+            print(f'time taken was {t}')
+            accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
+            times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
+            median_acc[str(i) + " num_users + " + str(j) + " reviews per user"] = med
+
 
     print(accuracies)
     print(median_acc)

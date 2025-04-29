@@ -88,8 +88,11 @@ def encode_vote_avg(avg: float) -> np.ndarray:
         return np.array([1, 1, 1])
 
 def encode_rating(rating: int) -> np.array:
+    rating = int(rating)
     empty_array = [0]*10
-    empty_array[rating*2] = 1
+    ones = rating*2
+    empty_array[:ones] = [1]*ones
+    print(f"rating: {rating} encoded as {empty_array}")
     return np.array(empty_array)
 
 def prepare_data(reviews_per_user:int | None = None,

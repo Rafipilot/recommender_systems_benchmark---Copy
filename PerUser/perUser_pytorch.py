@@ -137,18 +137,15 @@ if __name__ == "__main__":
     accuracies = {}
     times = {}
     num_user_list = [1]
-    num_reviews_list = [5]#, 500, 1000]
+    num_reviews_list = [50]#, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
-            try:
-                acc, med, t = run_torch_per_user(i, j)
-                print(f'accuracy for {i} num users and {j} reviews per user is {acc} and the median is {med}')
-                print(f'time taken was {t}')
-                accuracies[str(i) + " num_users + " + str(j) + " reviews per user"] = acc
-                times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
-            except Exception as e:
-                print(f"Error for {i} users and {j} reviews: {e}")
-                pass
+            acc, med, t = run_torch_per_user(i, j)
+            print(f'accuracy for {i} num users and {j} reviews per user is {acc} and the median is {med}')
+            print(f'time taken was {t}')
+            accuracies[str(i) + " num_users + " + str(j) + " reviews per user"] = acc
+            times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
+
 
     print(accuracies)
     print(times)
