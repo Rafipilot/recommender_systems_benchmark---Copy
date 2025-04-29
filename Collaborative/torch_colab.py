@@ -47,7 +47,7 @@ class RecSysModel(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(32, 1)
+            nn.Linear(32, 10)
         )
 
     def forward(self, user, movie, genres, lang, vote_count, vote_avg):
