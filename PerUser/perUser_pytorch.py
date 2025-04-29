@@ -52,16 +52,14 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
 
         for row in train_data:
             # Build input features (concatenate the encodings)
+        
             genre_encoding = row[3]  # length 10
             vote_avg_encoding = row[5]
             lang_encoding = row[4]
             vote_count_encoding =row[6]
             rating_encoding = row[2]
             input_vector = np.concatenate((genre_encoding, vote_avg_encoding,lang_encoding,vote_count_encoding))
-            if rating_encoding == 1:
-                rating_encoding = 10 * [1]
-            else:
-                rating_encoding = 10 * [0]
+
 
             train_inputs.append(input_vector)
             train_labels.append(rating_encoding)  # 10-element target
@@ -69,6 +67,9 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
         # Convert training data to torch tensors and send to device
         X_train = torch.Tensor(np.array(train_inputs))
         y_train = torch.Tensor(np.array(train_labels))
+
+        print("training on X_train: ", X_train)
+
 
         # Create model, loss function and optimizer
         model = MovieModel()
@@ -104,12 +105,19 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
                 X_test = torch.Tensor(np.array([input_vector]).reshape(1, -1))
                 pred = model(X_test).cpu().numpy()[0]
                 pred_sum = np.sum(pred >= 0.5)  # count number of neurons above threshold 0.5
-                predicted_label = 1 if pred_sum >= 5 else 0
-
-                # Ground truth: based on the rating encoding threshold
                 rating_encoding = row[2]
 
-                if predicted_label == rating_encoding:
+                distance = abs(pred_sum - np.sum(rating_encoding))
+
+                # if rating_encoding == 1:
+                #     rating_encoding = 10 * [1]
+                # else:
+                #     rating_encoding = 10 * [0]
+                # gt_sum = np.sum(rating_encoding)
+                # true_label = 1 if gt_sum >= 5 else 0
+
+
+                if distance <= 2:
                     correct += 1
 
         accuracy = correct / len(test_data) if test_data else 0
@@ -128,8 +136,8 @@ if __name__ == "__main__":
     # Testing the torch_model
     accuracies = {}
     times = {}
-    num_user_list = [100, 200]
-    num_reviews_list = [None]#, 500, 1000]
+    num_user_list = [1]
+    num_reviews_list = [5]#, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
             try:
@@ -138,7 +146,8 @@ if __name__ == "__main__":
                 print(f'time taken was {t}')
                 accuracies[str(i) + " num_users + " + str(j) + " reviews per user"] = acc
                 times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
-            except:
+            except Exception as e:
+                print(f"Error for {i} users and {j} reviews: {e}")
                 pass
 
     print(accuracies)

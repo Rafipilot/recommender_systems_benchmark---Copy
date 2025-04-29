@@ -71,12 +71,8 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
             vote_avg = row[5]
             vote_count = row[6]
 
-            input_data = np.concatenate((genres_data, vote_avg, lang, vote_count))
+            input_data = np.concatenate((genres_data, vote_avg,lang,vote_count))
 
-            if rating_encoding == 1:
-                rating_encoding = 10*[1]
-            else:
-                rating_encoding = 10*[0]
 
             label = rating_encoding
 
@@ -113,19 +109,11 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
             else:
                 rating_encoding = 10*[0]
 
-            ones = sum(response)
-            if ones >=5:
-                response = 1
-            else:
-                response = 0
-            
-            ones_2 = sum(rating_encoding)
-            if ones_2 >=5:
-                rating_encoding = 1
-            else:
-                rating_encoding = 0
 
-            if response == rating_encoding:
+
+            distance = abs(sum(rating_encoding)-sum(response))
+
+            if distance <= 2:
                 correct += 1
 
         correct_array.append(correct/number_test)
