@@ -136,8 +136,8 @@ def prepare_data(reviews_per_user:int | None = None,
     ratings.sort_values(['userId', 'timestamp'], inplace=True)
     ratings = ratings.drop_duplicates(['userId', 'movieId'], keep='last')
 
-    if reviews_per_user is None:
-        if num_user is None:
+    if reviews_per_user is None or reviews_per_user == 0:
+        if num_user is None or num_user == 0:
             # If reviews_per_user and num_user are both None, then assume that we want all the reviews from all the users
             # Hence merging the entirety of both rating and movies_metadata dataset
             print("merging reviews and movies_metadata...")
@@ -172,7 +172,7 @@ def prepare_data(reviews_per_user:int | None = None,
         heavy_users = user_review_counts[user_review_counts['num_ratings'] >= reviews_per_user]
         print(f"There are {len(heavy_users)} users with at least {reviews_per_user} reviews")
 
-        if num_user is not None:
+        if num_user is not None or num_user == 0:
             # if reviews_per_user is not None, and num_user is also not None, then we want to sample reviews_per_user
             # number of reviews from num_user number of randomly sampled users
             if len(heavy_users) < num_user:
@@ -199,7 +199,7 @@ def prepare_data(reviews_per_user:int | None = None,
     merged = merged[['userId', 'movieId', 'rating', 'genres_enc', 'lang_enc', 'vote_avg_enc', 'vote_count_enc']]
 
     # If we don't want to do a per_user analysis then the dataframe is good enough to be returned, no further
-    # chanegs needed
+    # changes needed
     if not per_user:
         return merged
 

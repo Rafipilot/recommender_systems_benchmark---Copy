@@ -13,7 +13,7 @@ def encode_genres(s: str) -> np.ndarray:
     :return: 10 bit binary encoded genres
     """
     start_genres = ["drama", "comedy", "action", "romance", "documentary",
-                    "thriller", "adventure", "fantasy", "crime", "horror"]
+              "thriller", "adventure", "fantasy", "crime", "horror"]
     # list of the genres that the movie belongs to
     genre_list = []
     try:
@@ -32,7 +32,6 @@ def encode_genres(s: str) -> np.ndarray:
             encoding[start_genres.index(genre)] = 1
 
     return np.array(encoding)
-
 
 def encode_lang(lang: str) -> np.ndarray:
     """
@@ -56,7 +55,6 @@ def encode_lang(lang: str) -> np.ndarray:
     else:
         return np.array([1, 1, 1])
 
-
 def encode_vote_count(num: int) -> np.ndarray:
     """
     encoding vote_count by putting it into bins of 100 (so, movies with less than 100 reviews go in first bin,
@@ -71,7 +69,6 @@ def encode_vote_count(num: int) -> np.ndarray:
     except:
         bins[-1] = 1
     return np.array(bins)
-
 
 def encode_vote_avg(avg: float) -> np.ndarray:
     """
@@ -91,10 +88,10 @@ def encode_vote_avg(avg: float) -> np.ndarray:
         return np.array([1, 1, 1])
 
 
-def prepare_data(reviews_per_user: int | None = None,
-                 top_percentile: float | None = None,
+def prepare_data(reviews_per_user:int | None = None,
+                 top_percentile:float | None = None,
                  num_user: int | None = None,
-                 per_user: bool = True):
+                 per_user : bool = True):
     """
     Prepares the data to be input for different ML models
     :param per_user: Set True if you're doing analysis on a per-user level and False if using collaborative filtering
@@ -127,6 +124,8 @@ def prepare_data(reviews_per_user: int | None = None,
     movies_metadata['vote_count'] = movies_metadata['vote_count'].fillna(0).astype(int)
     movies_metadata['vote_average'] = movies_metadata['vote_average'].fillna(0)
 
+
+
     # Filter out popular movies if top_percentile is defined
     if top_percentile is not None:
         print(f"Filtering movies in {top_percentile} of vote_count")
@@ -137,8 +136,8 @@ def prepare_data(reviews_per_user: int | None = None,
     ratings.sort_values(['userId', 'timestamp'], inplace=True)
     ratings = ratings.drop_duplicates(['userId', 'movieId'], keep='last')
 
-    if reviews_per_user is None:
-        if num_user is None:
+    if reviews_per_user is None or reviews_per_user == 0:
+        if num_user is None or num_user == 0:
             # If reviews_per_user and num_user are both None, then assume that we want all the reviews from all the users
             # Hence merging the entirety of both rating and movies_metadata dataset
             print("merging reviews and movies_metadata...")
@@ -147,6 +146,7 @@ def prepare_data(reviews_per_user: int | None = None,
             # If reviews_per_user is None, but num_user is specified, then we want all the reviews from
             # num_users number of users. Hence, filter num_users number of users from ratings (that have at least 2
             # ratings; 1 for training and 1 for testing), and then merge with movies_metadata
+
 
             # Merging the ratings and movies dataset before filtering because some users have reviews for movieId that
             # are not in movies_metadata
@@ -172,36 +172,34 @@ def prepare_data(reviews_per_user: int | None = None,
         heavy_users = user_review_counts[user_review_counts['num_ratings'] >= reviews_per_user]
         print(f"There are {len(heavy_users)} users with at least {reviews_per_user} reviews")
 
-        if num_user is not None:
+        if num_user is not None or num_user == 0:
             # if reviews_per_user is not None, and num_user is also not None, then we want to sample reviews_per_user
             # number of reviews from num_user number of randomly sampled users
             if len(heavy_users) < num_user:
-                raise ValueError(
-                    f"Only {len(heavy_users)} users have ≥{reviews_per_user} ratings (requested: {num_user})")
+                raise ValueError(f"Only {len(heavy_users)} users have ≥{reviews_per_user} ratings (requested: {num_user})")
             print(f"But we only want {num_user} users..")
             sample_users = heavy_users['userId'].sample(n=num_user, random_state=77).tolist()
-            merged = merged[merged['userId'].isin(sample_users)].groupby('userId').sample(n=reviews_per_user,
-                                                                                          random_state=9)
+            merged = merged[merged['userId'].isin(sample_users)].groupby('userId').sample(n=reviews_per_user, random_state=9)
             print(f"merge.shape after sampling {num_user} users : {merged.shape}")
         else:
             # if the reviews_per_user is not None, but the num_user is None, then we want to sample review_per_user number
             # of reviews from all the users
-            merged = merged[merged['userId'].isin(heavy_users['userId'])].groupby('userId').sample(n=reviews_per_user,
-                                                                                                   random_state=9)
+            merged = merged[merged['userId'].isin(heavy_users['userId'])].groupby('userId').sample(n=reviews_per_user, random_state=9)
             print(f"merge.shape after filtering out users with more than {reviews_per_user} reviews : {merged.shape}")
 
-    # Encoding all the columns with the functions we created earlier
+    #Encoding all the columns with the functions we created earlier
     merged['genres_enc'] = merged['genres'].apply(encode_genres)
     merged['lang_enc'] = merged['original_language'].apply(encode_lang)
     merged['vote_count_enc'] = merged['vote_count'].apply(encode_vote_count)
     merged['vote_avg_enc'] = merged['vote_average'].apply(encode_vote_avg)
     merged['rating'] = (merged['rating'] >= 3).astype(int)  # Binary classification target
 
+
     # Only keeping the columns we need for analysis
     merged = merged[['userId', 'movieId', 'rating', 'genres_enc', 'lang_enc', 'vote_avg_enc', 'vote_count_enc']]
 
     # If we don't want to do a per_user analysis then the dataframe is good enough to be returned, no further
-    # chanegs needed
+    # changes needed
     if not per_user:
         return merged
 

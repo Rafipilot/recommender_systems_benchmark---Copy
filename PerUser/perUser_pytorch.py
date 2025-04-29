@@ -8,20 +8,22 @@ import torch.optim as optim
 from data_prep import prepare_data
 
 # Check if GPU is available and set device
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# print("Using device:", device)
-# if device.type == "cuda":
-#     print("GPU Name:", torch.cuda.get_device_name(0))
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 
 
 def run_torch_per_user(num_users, reviews_per_user, split=0.8):
+    # Calling the prepare_data function from data_prep.py code to preprocess the data for the model.
+    # Users_data is a list, where each element represents a user. Each element (user) is also a list.
+    # and within that list are all the encodings and labels (of that user and a random movie)
+    # So, for example [[[user1, movie1, rating1],[user1, movie2, rating2]],[user2], [user3]]
     Users_data = prepare_data(num_user=num_users, reviews_per_user=reviews_per_user, per_user=True)
 
-    # Define the PyTorch model (similar architecture to the Keras model)
+    # Define the PyTorch model
     class MovieModel(nn.Module):
         def __init__(self):
             super(MovieModel, self).__init__()
-            self.fc1 = nn.Linear(26, 32)  # 18 = 10 (genre) + 3 (vote_avg) + 3 (lang) + 2 (vote_count)
+            self.fc1 = nn.Linear(26, 32)  # 26 = 10 (genre) + 3 (vote_avg) + 3 (lang) + 10 (vote_count)
             self.fc2 = nn.Linear(32, 16)
             self.fc3 = nn.Linear(16, 10)
             self.relu = nn.ReLU()
@@ -35,10 +37,11 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
 
     correct_array = []  # Accuracy for each user group
 
-    # Process each user group
+    # Process each user in the Users_data
     now = time.time()
     for idx, user_data in enumerate(Users_data):
-        # print(f"\nUser Group {idx}:")
+
+        # train-test split
         n = len(user_data)
         split_index = math.floor(n * split)
         train_data = user_data[:split_index]
@@ -72,7 +75,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
         criterion = nn.BCELoss()
         optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-        # Training loop for 5 epochs
+        # Training loop for 25 epochs
         model.train()
         for epoch in range(25):
             optimizer.zero_grad()
@@ -105,12 +108,6 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
 
                 # Ground truth: based on the rating encoding threshold
                 rating_encoding = row[2]
-                # if rating_encoding == 1:
-                #     rating_encoding = 10 * [1]
-                # else:
-                #     rating_encoding = 10 * [0]
-                # gt_sum = np.sum(rating_encoding)
-                # true_label = 1 if gt_sum >= 5 else 0
 
                 if predicted_label == rating_encoding:
                     correct += 1
@@ -128,7 +125,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
 
 
 if __name__ == "__main__":
-
+    # Testing the torch_model
     accuracies = {}
     times = {}
     num_user_list = [100, 200]
