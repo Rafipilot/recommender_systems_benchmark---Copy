@@ -49,6 +49,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
 
         for row in train_data:
             # Build input features (concatenate the encodings)
+        
             genre_encoding = row[3]  # length 10
             vote_avg_encoding = row[5]
             lang_encoding = row[4]
@@ -66,6 +67,9 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
         # Convert training data to torch tensors and send to device
         X_train = torch.Tensor(np.array(train_inputs))
         y_train = torch.Tensor(np.array(train_labels))
+
+        print("training on X_train: ", X_train)
+        
 
         # Create model, loss function and optimizer
         model = MovieModel()
@@ -131,8 +135,8 @@ if __name__ == "__main__":
 
     accuracies = {}
     times = {}
-    num_user_list = [100, 200]
-    num_reviews_list = [None]#, 500, 1000]
+    num_user_list = [1]
+    num_reviews_list = [5]#, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
             try:
@@ -141,7 +145,8 @@ if __name__ == "__main__":
                 print(f'time taken was {t}')
                 accuracies[str(i) + " num_users + " + str(j) + " reviews per user"] = acc
                 times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
-            except:
+            except Exception as e:
+                print(f"Error for {i} users and {j} reviews: {e}")
                 pass
 
     print(accuracies)

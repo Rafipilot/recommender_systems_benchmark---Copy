@@ -102,21 +102,9 @@ def run_ao_model(num_users, reviews_per_user, split=0.8):
             else:
                 rating_encoding = 10*[0]
 
+            distance = abs(sum(rating_encoding)-sum(response))
 
-            ones = sum(response)
-            if ones >=5:
-                response = 1
-            else:
-                response = 0
-            
-            ones_2 = sum(rating_encoding)
-            if ones_2 >=5:
-                rating_encoding = 1
-            else:
-                rating_encoding = 0
-            
-
-            if response == rating_encoding:
+            if distance <= 2:
                 correct += 1
 
             #Agent.next_state(input_data, rating_encoding, DD=False, Hamming=False, Backprop=False, Backprop_type="norm", unsequenced=True)
