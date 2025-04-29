@@ -56,10 +56,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
             vote_count_encoding =row[6]
             rating_encoding = row[2]
             input_vector = np.concatenate((genre_encoding, vote_avg_encoding,lang_encoding,vote_count_encoding))
-            if rating_encoding == 1:
-                rating_encoding = 10 * [1]
-            else:
-                rating_encoding = 10 * [0]
+
 
             train_inputs.append(input_vector)
             train_labels.append(rating_encoding)  # 10-element target
@@ -69,7 +66,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
         y_train = torch.Tensor(np.array(train_labels))
 
         print("training on X_train: ", X_train)
-        
+
 
         # Create model, loss function and optimizer
         model = MovieModel()
@@ -105,10 +102,10 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
                 X_test = torch.Tensor(np.array([input_vector]).reshape(1, -1))
                 pred = model(X_test).cpu().numpy()[0]
                 pred_sum = np.sum(pred >= 0.5)  # count number of neurons above threshold 0.5
-                predicted_label = 1 if pred_sum >= 5 else 0
-
-                # Ground truth: based on the rating encoding threshold
                 rating_encoding = row[2]
+
+                distance = abs(pred_sum - np.sum(rating_encoding))
+
                 # if rating_encoding == 1:
                 #     rating_encoding = 10 * [1]
                 # else:
@@ -116,7 +113,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
                 # gt_sum = np.sum(rating_encoding)
                 # true_label = 1 if gt_sum >= 5 else 0
 
-                if predicted_label == rating_encoding:
+                if distance <= 2:
                     correct += 1
 
         accuracy = correct / len(test_data) if test_data else 0

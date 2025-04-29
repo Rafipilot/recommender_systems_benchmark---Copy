@@ -49,13 +49,6 @@ def run_ao_model(num_users, reviews_per_user, split=0.8):
 
             input_data = np.concatenate((genres_data, vote_avg,lang,vote_count))
 
-
-            if rating_encoding == 1:
-                rating_encoding = 10*[1]
-            else:
-                rating_encoding = 10*[0]
-            
-
             label = rating_encoding
 
 
