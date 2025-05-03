@@ -46,13 +46,25 @@ has in general, and finally, `encode_vote_average`: to encode the overall rating
     - If (`reviews_per_user` == None or 0), AND (`num_user` != None or 0), then we'll take all the reviews from `num_user` randomly sampled users. 
     - If (`reviews_per_user` != None or 0), AND (`num_user` != None or 0), then we'll sample `reviews_per_user` reviews from `num_user` randomly sampled users. 
     - If (`reviews_per_user` != None or 0), AND (`num_user` == None or 0), then we'll sample `reviews_per_user` reviews from all the users with >= `reviews_per_user` reviews
+  - Once we filter the number of users and the number of reviews for each user, we then binary encode all the necessary columns according to the functions we defined earlier. 
   - If the `per_user` parameter is False, we'll return the merged data after the previous processing
   - If the `per_user` parameter is True, then Uers_data is returned. Users_data is a list, where each element represents a user. Each element (user) is also a list. And within that list are all the encodings and labels (of that user and a random movie. So, for example [[[user1, movie1, rating1],[user1, movie2, rating2]],[user2], [user3]]
 
 ### [`PerUser.py`](https://github.com/saatweek/recommender_systems_benchmark/blob/main/PerUser/perUser.py)
-It has 1 function, called, `run_ao_model()`, this 
+It has 1 function, called, `run_ao_model()`, this function takes in  `num_users` and `reviews_per_user` and `split`. 
+- `num_users` takes in an integer and is the number of users you want to run the model for (or number of individual models you want to test). If 0 or None, then all the users are taken
+- `reviews_per_user` takes in an integer and is the number of reviews of each user you want to consider. If 0 or None, then all the reviews are considered to train/test the model
+- `split` is the ratio of training set from the entire dataset. The default value is 0.8, therefore 80-20 split is considered for training and testing.
+- The function returns 3 values :
+   - the mean accuracy of all the users
+   - the median accuracy of all the users
+   - Time taken for the model to go through all the users. 
 
+### [`perUser_pytorch.py`](https://github.com/saatweek/recommender_systems_benchmark/blob/one_hot/PerUser/perUser_pytorch.py)
+It also has just one function with exactly the same parameters as `perUser.py` which do the exact same thing and return the exact same values
 
+### [`torch_colab`](https://github.com/saatweek/recommender_systems_benchmark/blob/one_hot/Collaborative/torch_colab.py)
+It also has only one function, but with 2 arguments. `num_users` and `reviews_per_user`. And unlike the other two functions, it only returns average accuracy and the time taken by the model to train and test. 
 
-
-   
+### [`compare_all.py`](https://github.com/saatweek/recommender_systems_benchmark/blob/one_hot/compare_all.py)
+Program to run all the models and save the results to a .csv file. 
