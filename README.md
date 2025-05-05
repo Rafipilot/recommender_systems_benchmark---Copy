@@ -18,7 +18,7 @@ collaborative filtering, achieving similar levels of accuracy on MovieLens datas
 
 This program is consists of 2 broad categories:
  - Per-User level recommendation code ([`PerUser`](https://github.com/saatweek/recommender_systems_benchmark/tree/main/PerUser) folder)
-   - [Per User recommendation using AO Lab's weightless neural networks](https://github.com/saatweek/recommender_systems_benchmark/blob/main/PerUser/perUser.py)
+   - [Per User recommendation using weightless neural networks](https://github.com/saatweek/recommender_systems_benchmark/blob/main/PerUser/perUser.py)
    - [Per User recommendation using a typical neural network](https://github.com/saatweek/recommender_systems_benchmark/blob/main/PerUser/perUser_pytorch.py)
  - [Collaborative Filtering codes](https://github.com/saatweek/recommender_systems_benchmark/blob/main/Collaborative/torch_colab.py) ([`Collaborative`](https://github.com/saatweek/recommender_systems_benchmark/tree/main/Collaborative) folder)
 
