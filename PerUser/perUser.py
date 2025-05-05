@@ -4,9 +4,6 @@ from statistics import median
 import ao_core as ao
 import time
 import gc
-
-from torch.onnx.symbolic_opset9 import argmax
-
 from data_prep import prepare_data
 
 
@@ -77,11 +74,8 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
             input_data = np.concatenate((genres_data, vote_avg,lang,vote_count))
 
 
-            rating = rating_encoding
-            rating = np.argmax(rating)
-            label = np.zeros(10)
-            ones_indices = np.random.choice(10, size=rating, replace=False)
-            label[ones_indices] =1
+            label = rating_encoding
+
             inputs.append(input_data)
             labels.append(label.tolist())
 
@@ -90,9 +84,6 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
         # DD stands for discriminative distance, and Hamming is for hamming distance. Since both of them are True, we'll calculate
         # the predictions using DD first, and if that fails to converge, then use Hamming distances.
         # Backprop is set to False, so Backprop_epochs aren't doing anything here
-        
-        
-        print("labels: ", labels)
         
         Agent.next_state_batch(inputs, labels, unsequenced=True, DD=True, Hamming=True, Backprop=False, Backprop_epochs=10)
 
@@ -114,7 +105,8 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
             
             Agent.reset_state()
 
-            distance = abs(np.argmax(rating_encoding)-np.sum(response))
+
+            distance = abs(sum(rating_encoding)-sum(response))
 
             if distance <= 2:
                 correct += 1
@@ -138,8 +130,8 @@ if __name__=="__main__":
     accuracies = {}
     times = {}
     median_acc = {}
-    num_user_list = [1]
-    num_reviews_list = [50]#, 200, 500, 1000]
+    num_user_list = [250]
+    num_reviews_list = [5, 10, 25, 100, 200]
     for i in num_user_list:
         for j in num_reviews_list:
 

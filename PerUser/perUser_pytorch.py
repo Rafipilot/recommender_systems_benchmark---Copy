@@ -7,10 +7,6 @@ import torch.nn as nn
 import torch.optim as optim
 from data_prep import prepare_data
 
-# Check if GPU is available and set device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device)
-
 
 def run_torch_per_user(num_users, reviews_per_user, split=0.8):
     # Calling the prepare_data function from data_prep.py code to preprocess the data for the model.
@@ -18,21 +14,22 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
     # and within that list are all the encodings and labels (of that user and a random movie)
     # So, for example [[[user1, movie1, rating1],[user1, movie2, rating2]],[user2], [user3]]
     Users_data = prepare_data(num_user=num_users, reviews_per_user=reviews_per_user, per_user=True)
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
     # Define the PyTorch model
-
     class MovieModel(nn.Module):
         def __init__(self):
             super(MovieModel, self).__init__()
-            self.fc1 = nn.Linear(26, 32)  # For your 26 input features
+            self.fc1 = nn.Linear(26, 32)  # 26 = 10 (genre) + 3 (vote_avg) + 3 (lang) + 10 (vote_count)
             self.fc2 = nn.Linear(32, 16)
-            self.fc3 = nn.Linear(16, 10)  # 10 output neurons for 10 bins
+            self.fc3 = nn.Linear(16, 10)
             self.relu = nn.ReLU()
+            self.sigmoid = nn.Sigmoid()
 
         def forward(self, x):
             x = self.relu(self.fc1(x))
             x = self.relu(self.fc2(x))
-            x = self.fc3(x)
+            x = self.sigmoid(self.fc3(x))
             return x
 
     correct_array = []  # Accuracy for each user group
@@ -46,6 +43,7 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
         split_index = math.floor(n * split)
         train_data = user_data[:split_index]
         test_data = user_data[split_index:]
+
         train_inputs = []
         train_labels = []
 
@@ -61,15 +59,15 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
 
 
             train_inputs.append(input_vector)
-            train_labels.append(np.argmax(rating_encoding))  # 10-element target
+            train_labels.append(rating_encoding)  # 10-element target
 
         # Convert training data to torch tensors and send to device
-        X_train = torch.Tensor(np.array(train_inputs))
-        y_train = torch.LongTensor(np.array(train_labels))
+        X_train = torch.Tensor(np.array(train_inputs)).to(device)
+        y_train = torch.Tensor(np.array(train_labels)).to(device)
 
         # Create model, loss function and optimizer
-        model = MovieModel()
-        criterion = nn.CrossEntropyLoss()
+        model = MovieModel().to(device)
+        criterion = nn.BCEWithLogitsLoss()
         optimizer = optim.Adam(model.parameters(), lr=0.001)
 
         # Training loop for 25 epochs
@@ -81,7 +79,6 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
                 loss = criterion(outputs, y_train)
                 loss.backward()
                 optimizer.step()
-                # print(f"Epoch {epoch + 1}/25, Loss: {loss.item():.4f}")
             except Exception as e:
                 print(e)
 
@@ -98,12 +95,13 @@ def run_torch_per_user(num_users, reviews_per_user, split=0.8):
                 input_vector = np.concatenate((genre_encoding, vote_avg_encoding,lang_encoding,vote_count_encoding))
 
                 # Prepare input tensor (shape: [1, 18])
-                X_test = torch.Tensor(np.array([input_vector]).reshape(1, -1))
+                X_test = torch.Tensor(np.array([input_vector]).reshape(1, -1)).to(device)
                 pred = model(X_test).cpu().numpy()[0]
-                pred = np.argmax(pred)  # count number of neurons above threshold 0.5
+                pred_sum = np.sum(pred >= 0.5)
                 rating_encoding = row[2]
-                truth = np.argmax(rating_encoding)
-                distance = abs(pred - truth)
+                actual_rating = np.sum(rating_encoding)
+                print(f'pred : {pred_sum}, actual : {actual_rating}')
+                distance = abs(pred_sum - actual_rating)
 
                 # if rating_encoding == 1:
                 #     rating_encoding = 10 * [1]
@@ -132,8 +130,8 @@ if __name__ == "__main__":
     # Testing the torch_model
     accuracies = {}
     times = {}
-    num_user_list = [10]
-    num_reviews_list = [100, 500, 1000]
+    num_user_list = [250]
+    num_reviews_list = [5, 10, 25, 100, 200]
     for i in num_user_list:
         for j in num_reviews_list:
             acc, med, t = run_torch_per_user(i, j)
