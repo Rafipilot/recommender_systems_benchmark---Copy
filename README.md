@@ -6,7 +6,7 @@ Given that conventional recommenders, while deeply effective, rely on large dist
 making them slow to adapt to real-time user feedback and often lacking transparency in recommendation rationale. We
 explore the performance of smaller personal models trained on per-user data using Weightless Neural
 Networks (WNNs), an alternative to neural backpropagation that enable continuous learning by using
-neural networks as a state machine rather than a system with pretrained weights. We contrast our
+neural networks as a state machine rather than a system with pre-trained weights. We contrast our
 approach against a classic weighted system (also on a per-user level), and the industry standard,
 collaborative filtering, achieving similar levels of accuracy on MovieLens dataset. 
 
@@ -32,23 +32,23 @@ goes over what each file does overall, and describes a few important functions
 
 ### [`data_prep.py`](https://github.com/saatweek/recommender_systems_benchmark/blob/main/data_prep.py)
 
-- We first define all the fuctions to binary encode the columns we are interested in, these are `encode_genres()` : to encode the genres the movie belongs to,
+- We first define all the functions to binary encode the columns we are interested in, these are `encode_genres()` : to encode the genres the movie belongs to,
 `encode_lang()` : to encode the original language the movie was released in, `encode_vote_count()` : to encode the number of reviews the movie
 has in general, and finally, `encode_vote_average`: to encode the overall rating the movie has
 
-- We use binary encodings for encoding all our input columns because weightless neural netowrks only take binary inputs, and then only output binary values
+- We use binary encodings for encoding all our input columns because weightless neural networks only take binary inputs, and then only output binary values
 - We then define the `data_prep()` function that prepares the data on which we train all the 3 models (weightless neural networks, weighted neural networks, and collaborative filtering)
   - We first use `kagglehub` to download the data, if the data is already downloaded then it just uses the already saved data.
-  - We then load 2 datasets from the movies dataset, the `movies_metadata` : which has all the information about all the movies (actors, directors, language, genre etc) and `ratings` dataset: which has information about all the ratings given by each user to whatever movie they've watched.
+  - We then load 2 datasets from the movies dataset, the `movies_metadata` : which has all the information about all the movies (actors, directors, language, genre etc.) and `ratings` dataset: which has information about all the ratings given by each user to whatever movie they've watched.
   - We handle all the missing values in `movies_metadata` and filter all the popular movies if `top_percentile` is specified in the `data_prep` parameter.
-  - There are 2 important parameters that we need to specificy in the function : `num_user` and `reviews_per_user`. `num_user` gives us the number of unique users we want in our final dataset, and `reviews_per_user` specifies how many reviews should each of those unique users should have. Depending on the values of both, there are 4 possible cases :
+  - There are 2 important parameters that we need to specify in the function : `num_user` and `reviews_per_user`. `num_user` gives us the number of unique users we want in our final dataset, and `reviews_per_user` specifies how many reviews should each of those unique users should have. Depending on the values of both, there are 4 possible cases :
     - If the (`reviews_per_user` == None or 0), AND (`num_reviews` == None or 0), then we'll take all the reviews from all the users
     - If (`reviews_per_user` == None or 0), AND (`num_user` != None or 0), then we'll take all the reviews from `num_user` randomly sampled users. 
     - If (`reviews_per_user` != None or 0), AND (`num_user` != None or 0), then we'll sample `reviews_per_user` reviews from `num_user` randomly sampled users. 
     - If (`reviews_per_user` != None or 0), AND (`num_user` == None or 0), then we'll sample `reviews_per_user` reviews from all the users with >= `reviews_per_user` reviews
   - Once we filter the number of users and the number of reviews for each user, we then binary encode all the necessary columns according to the functions we defined earlier. 
   - If the `per_user` parameter is False, we'll return the merged data after the previous processing
-  - If the `per_user` parameter is True, then Uers_data is returned. Users_data is a list, where each element represents a user. Each element (user) is also a list. And within that list are all the encodings and labels (of that user and a random movie. So, for example [[[user1, movie1, rating1],[user1, movie2, rating2]],[user2], [user3]]
+  - If the `per_user` parameter is True, then Users_data is returned. Users_data is a list, where each element represents a user. Each element (user) is also a list. And within that list are all the encodings and labels (of that user and a random movie. So, for example [[[user1, movie1, rating1],[user1, movie2, rating2]],[user2], [user3]]
 
 ### [`PerUser.py`](https://github.com/saatweek/recommender_systems_benchmark/blob/main/PerUser/perUser.py)
 It has 1 function, called, `run_ao_model()`, this function takes in  `num_users` and `reviews_per_user` and `split`. 

@@ -17,7 +17,7 @@ class MovieDataset(Dataset):
         self.lang = torch.tensor(np.stack(df['lang_enc'].values), dtype=torch.float32)
         self.vote_count = torch.tensor(np.stack(df['vote_count_enc'].values), dtype=torch.float32)
         self.vote_avg = torch.tensor(np.stack(df['vote_avg_enc'].values), dtype=torch.float32)
-        self.rating = torch.tensor(df['rating'].values - 1, dtype=torch.long)
+        self.rating = torch.tensor(np.stack(df['rating'].values), dtype=torch.float32)
 
     def __len__(self):
         return len(self.users)
@@ -47,7 +47,8 @@ class RecSysModel(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(32, 10)
+            nn.Linear(32, 10),
+            nn.Sigmoid()
         )
 
     def forward(self, user, movie, genres, lang, vote_count, vote_avg):
@@ -67,9 +68,7 @@ def run_colab_model(num_users, reviews_per_user):
     df['movie_id'] = movie_encoder.fit_transform(df['movieId'])
 
     # Train/Test split
-    train_df, val_df = model_selection.train_test_split(
-        df, test_size=0.2, random_state=42)
-
+    train_df, val_df = model_selection.train_test_split(df, test_size=0.2, random_state=42)
     train_ds = MovieDataset(train_df)
     val_ds = MovieDataset(val_df)
 
@@ -83,14 +82,12 @@ def run_colab_model(num_users, reviews_per_user):
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCEWithLogitsLoss()
 
     # Training loop
     epochs = 25
-    losses = []
     epoch_start = time.time()
     for epoch in range(epochs):
-        start_time=time.time()
         model.train()
         epoch_loss = 0
         for batch in train_loader:
@@ -98,41 +95,43 @@ def run_colab_model(num_users, reviews_per_user):
 
             inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
             output = model(**inputs)
-            loss = criterion(output, batch['rating'].to(device))
+            loss = criterion(output.squeeze(), batch['rating'].to(device))
 
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
 
-        avg_loss = epoch_loss / len(train_loader)
-        losses.append(avg_loss)
-        # print(f"Epoch {epoch + 1}/{epochs} - Loss: {avg_loss:.4f} - Time Taken: {time.time()-start_time:.2f} secs")
-
     # Evaluation
     model.eval()
     val_preds = []
     val_targets = []
+    count = 0
     with torch.no_grad():
         for batch in val_loader:
             inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
-            outputs = model(**inputs).squeeze().sigmoid()
-            preds = torch.argmax(outputs, dim=1)
-            val_preds.extend(preds.cpu().numpy())
+            outputs = model(**inputs).squeeze()
             val_preds.extend(outputs.cpu().numpy())
             val_targets.extend(batch['rating'].cpu().numpy())
 
-    # print(f"Validation ROC-AUC: {metrics.roc_auc_score(val_targets, val_preds):.4f}")
-    # print(f"Validation Accuracy: {metrics.accuracy_score(val_targets, np.round(val_preds)):.4f}")
+    val_preds = np.array(val_preds)
+    pred_sum = np.sum(val_preds >= 0.5, axis=1)
+    val_targets = np.array(val_targets)
+    val_sum = np.sum(val_targets, axis=1)
+    print(f'pred : {pred_sum}')
+    print(f' target : {val_sum}')
+    diff = np.abs(pred_sum - val_sum)
+    count += np.sum(diff <= 2)
     time_taken = time.time() - epoch_start
-    accuracy = metrics.accuracy_score(val_targets, np.round(val_preds))
+    print(f'val_targets.shape : {len(val_targets)}, val_preds.shape : {len(val_preds)}')
+    accuracy = count/len(val_targets)
 
     return accuracy, time_taken
 
 if __name__=="__main__":
     accuracies = {}
     times = {}
-    num_user_list = [100, 200]#, 1000]
-    num_reviews_list = [50, 200]#, 500, 1000]
+    num_user_list = [250]
+    num_reviews_list = [5, 10, 25, 100, 200]
     for i in num_user_list:
         for j in num_reviews_list:
             acc, t = run_colab_model(i, j)
@@ -140,5 +139,6 @@ if __name__=="__main__":
             print(f'time taken was {t}')
             accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
             times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
+
     print(accuracies)
     print(times)
