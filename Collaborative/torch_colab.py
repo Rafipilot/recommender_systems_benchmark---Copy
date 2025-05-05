@@ -17,7 +17,7 @@ class MovieDataset(Dataset):
         self.lang = torch.tensor(np.stack(df['lang_enc'].values), dtype=torch.float32)
         self.vote_count = torch.tensor(np.stack(df['vote_count_enc'].values), dtype=torch.float32)
         self.vote_avg = torch.tensor(np.stack(df['vote_avg_enc'].values), dtype=torch.float32)
-        self.rating = torch.tensor(df['rating'].values, dtype=torch.float32)
+        self.rating = torch.tensor(df['rating'].values - 1, dtype=torch.long)
 
     def __len__(self):
         return len(self.users)
@@ -58,7 +58,6 @@ class RecSysModel(nn.Module):
 
 def run_colab_model(num_users, reviews_per_user):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # print(f"using {device} for training")
     df = prepare_data(num_user=num_users, reviews_per_user=reviews_per_user, per_user=False)
 
     # Label encoding
@@ -69,7 +68,7 @@ def run_colab_model(num_users, reviews_per_user):
 
     # Train/Test split
     train_df, val_df = model_selection.train_test_split(
-        df, test_size=0.2, stratify=df['rating'], random_state=42)
+        df, test_size=0.2, random_state=42)
 
     train_ds = MovieDataset(train_df)
     val_ds = MovieDataset(val_df)
@@ -84,7 +83,7 @@ def run_colab_model(num_users, reviews_per_user):
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.CrossEntropyLoss()
 
     # Training loop
     epochs = 25
@@ -99,7 +98,7 @@ def run_colab_model(num_users, reviews_per_user):
 
             inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
             output = model(**inputs)
-            loss = criterion(output.squeeze(), batch['rating'].to(device))
+            loss = criterion(output, batch['rating'].to(device))
 
             loss.backward()
             optimizer.step()
@@ -117,6 +116,8 @@ def run_colab_model(num_users, reviews_per_user):
         for batch in val_loader:
             inputs = {k: v.to(device) for k, v in batch.items() if k != 'rating'}
             outputs = model(**inputs).squeeze().sigmoid()
+            preds = torch.argmax(outputs, dim=1)
+            val_preds.extend(preds.cpu().numpy())
             val_preds.extend(outputs.cpu().numpy())
             val_targets.extend(batch['rating'].cpu().numpy())
 
@@ -131,17 +132,13 @@ if __name__=="__main__":
     accuracies = {}
     times = {}
     num_user_list = [100, 200]#, 1000]
-    num_reviews_list = [None]#50, 200, 500, 1000]
+    num_reviews_list = [50, 200]#, 500, 1000]
     for i in num_user_list:
         for j in num_reviews_list:
-            try :
-                acc, t = run_colab_model(i, j)
-                print(f'accuracy for {i} num users and {j} reviews per user is {acc}')
-                print(f'time taken was {t}')
-                accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
-                times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
-            except:
-                pass
-
+            acc, t = run_colab_model(i, j)
+            print(f'accuracy for {i} num users and {j} reviews per user is {acc}')
+            print(f'time taken was {t}')
+            accuracies[str(i)+" num_users + "+str(j)+" reviews per user"] = acc
+            times[str(i) + " num_users + " + str(j) + " reviews per user"] = t
     print(accuracies)
     print(times)

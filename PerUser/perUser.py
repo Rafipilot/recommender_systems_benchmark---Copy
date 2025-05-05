@@ -4,6 +4,9 @@ from statistics import median
 import ao_core as ao
 import time
 import gc
+
+from torch.onnx.symbolic_opset9 import argmax
+
 from data_prep import prepare_data
 
 
@@ -74,8 +77,11 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
             input_data = np.concatenate((genres_data, vote_avg,lang,vote_count))
 
 
-            label = rating_encoding
-
+            rating = rating_encoding
+            rating = np.argmax(rating)
+            label = np.zeros(10)
+            ones_indices = np.random.choice(10, size=rating, replace=False)
+            label[ones_indices] =1
             inputs.append(input_data)
             labels.append(label.tolist())
 
@@ -108,8 +114,7 @@ def run_ao_model(num_users:int, reviews_per_user:int, split=0.8):
             
             Agent.reset_state()
 
-
-            distance = abs(sum(rating_encoding)-sum(response))
+            distance = abs(np.argmax(rating_encoding)-np.sum(response))
 
             if distance <= 2:
                 correct += 1

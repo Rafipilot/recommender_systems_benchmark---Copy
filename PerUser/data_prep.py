@@ -88,11 +88,8 @@ def encode_vote_avg(avg: float) -> np.ndarray:
         return np.array([1, 1, 1])
 
 def encode_rating(rating: int) -> np.array:
-    rating = int(rating)
-    empty_array = [0]*10
-    ones = rating*2
-    empty_array[:ones] = [1]*ones
-    print(f"rating: {rating} encoded as {empty_array}")
+    empty_array = [0] * 10
+    empty_array[max(0, int(rating * 2) - 1)] = 1
     return np.array(empty_array)
 
 def prepare_data(reviews_per_user:int | None = None,
@@ -109,7 +106,7 @@ def prepare_data(reviews_per_user:int | None = None,
     """
     # Download dataset
     print("Downloading dataset..")
-    path = "data"
+    path = kagglehub.dataset_download("rounakbanik/the-movies-dataset")
 
     # Load data
     print("Loading dataset..")
@@ -199,7 +196,6 @@ def prepare_data(reviews_per_user:int | None = None,
     merged['lang_enc'] = merged['original_language'].apply(encode_lang)
     merged['vote_count_enc'] = merged['vote_count'].apply(encode_vote_count)
     merged['vote_avg_enc'] = merged['vote_average'].apply(encode_vote_avg)
-    # merged['rating'] = (merged['rating'] >= 3).astype(int)  # Binary classification target
     merged['rating'] = merged['rating'].apply(encode_rating)
 
     # Only keeping the columns we need for analysis
